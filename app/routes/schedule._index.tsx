@@ -371,32 +371,42 @@ function BlockCard({
               </div>
             </div>
           ) : (
-            <Form method="post" className="space-y-1.5">
-              <input type="hidden" name="intent" value="update-block" />
-              <input type="hidden" name="blockId" value={block.id} />
-              <input type="hidden" name="date" value={date} />
-              <input type="text" name="title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+            <div className="space-y-1.5">
+              <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
                 className="w-full px-2 py-1 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-400" />
               <div className="flex gap-1">
-                <input type="time" name="startTime" value={editStart} onChange={(e) => setEditStart(e.target.value)}
+                <input type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)}
                   className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none" />
-                <input type="time" name="endTime" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
+                <input type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
                   className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none" />
               </div>
-              <select name="blockType" value={editType} onChange={(e) => setEditType(e.target.value)}
+              <select value={editType} onChange={(e) => setEditType(e.target.value)}
                 className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none">
                 {Object.entries(BLOCK_TYPE_LABELS).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}
               </select>
-              <input type="hidden" name="color" value={editColor} />
-              <input type="hidden" name="description" value={editDesc} />
-              <input type="hidden" name="taskIds" value={block.taskIds || ""} />
               <div className="flex gap-1.5">
-                <button type="submit" className="flex-1 py-1 text-[11px] font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700">保存</button>
+                <button
+                  type="button"
+                  className="flex-1 py-1 text-[11px] font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  onClick={() => {
+                    fetcher.submit(
+                      {
+                        intent: "update-block", blockId: block.id, date,
+                        title: editTitle, startTime: editStart, endTime: editEnd,
+                        blockType: editType, color: editColor,
+                        description: editDesc, taskIds: block.taskIds || "",
+                        isDrag: "1",
+                      },
+                      { method: "post" }
+                    );
+                    setEditing(false);
+                  }}
+                >保存</button>
                 <button type="button" onClick={() => setEditing(false)} className="flex-1 py-1 text-[11px] text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">取消</button>
               </div>
-            </Form>
+            </div>
           )}
         </div>
       )}
