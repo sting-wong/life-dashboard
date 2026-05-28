@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-gray-900 antialiased;
+    background: #EEF1F0;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-[18px] border border-[#E8ECEA] shadow-card;
+  }
+  .card-hover {
+    @apply hover:shadow-card-hover hover:border-gray-200 transition-all duration-200;
+  }
+  .input {
+    @apply bg-[#F4F6F5] border border-[#E8ECEA] rounded-[18px] px-3.5 py-2.5 text-sm
+           placeholder:text-[#8A8F98] focus:outline-none focus:ring-2 focus:ring-primary-100
+           focus:border-primary-300 transition-all;
+  }
+  .btn-primary {
+    @apply bg-primary-600 text-white rounded-full px-5 py-2.5 text-sm font-semibold
+           hover:bg-primary-700 hover:shadow-md transition-all duration-200;
+  }
+  .btn-outline {
+    @apply bg-white border border-[#E8ECEA] text-gray-700 rounded-full px-5 py-2.5 text-sm font-medium
+           hover:bg-gray-50 hover:border-gray-300 transition-all duration-200;
+  }
+  .btn-outline-green {
+    @apply bg-white border border-primary-200 text-primary-700 rounded-full px-5 py-2.5 text-sm font-medium
+           hover:bg-primary-50 hover:border-primary-300 transition-all duration-200;
+  }
+  .badge {
+    @apply inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+  .badge-green { @apply bg-primary-50 text-primary-700; }
+  .badge-yellow { @apply bg-yellow-50 text-yellow-700; }
+  .badge-red { @apply bg-red-50 text-red-600; }
+}
+
+/* ─── TipTap / ProseMirror ─── */
+.ProseMirror { @apply outline-none; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  @apply text-gray-400 float-left h-0 pointer-events-none;
+  content: attr(data-placeholder);
+}
+.ProseMirror h1 { @apply text-2xl font-bold mb-2; }
+.ProseMirror h2 { @apply text-xl font-semibold mb-2; }
+.ProseMirror h3 { @apply text-lg font-medium mb-1.5; }
+.ProseMirror p { @apply mb-2; }
+.ProseMirror ul { @apply list-disc pl-6 mb-2; }
+.ProseMirror ol { @apply list-decimal pl-6 mb-2; }
+.ProseMirror li { @apply mb-1; }
+.ProseMirror blockquote { @apply border-l-4 border-gray-300 pl-4 italic text-gray-600 my-2; }
+.ProseMirror code { @apply bg-gray-100 rounded px-1.5 py-0.5 text-sm font-mono text-red-600; }
+.ProseMirror pre { @apply bg-gray-900 text-gray-100 rounded-lg p-4 my-3 overflow-x-auto; }
+.ProseMirror pre code { @apply bg-transparent text-gray-100 p-0; }
+.ProseMirror a { @apply text-primary-600 underline cursor-pointer; }
+.ProseMirror ul[data-type="taskList"] { @apply list-none pl-0; }
+.ProseMirror ul[data-type="taskList"] li { @apply flex items-start gap-2; }
+.ProseMirror ul[data-type="taskList"] li label { @apply mt-0.5; }
+.ProseMirror ul[data-type="taskList"] li label input[type="checkbox"] { @apply cursor-pointer; }
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p { @apply line-through text-gray-400; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-gray-300; }
+
