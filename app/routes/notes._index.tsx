@@ -105,8 +105,8 @@ export default function NotesList() {
       </div>
 
       <div className="flex flex-col md:flex-row md:gap-6 gap-4">
-        {/* Category sidebar */}
-        <div className="w-full md:w-48 md:shrink-0">
+        {/* Category sidebar — only when there are notes */}
+        {noteList.length > 0 && <div className="w-full md:w-48 md:shrink-0">
           <div className="card p-3">
             <div className="flex items-center justify-between mb-2 md:mb-2">
               <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">分类</h3>
@@ -178,12 +178,12 @@ export default function NotesList() {
               ))}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Notes list */}
         <div className="flex-1">
-          {/* Search */}
-          <div className="mb-4">
+          {/* Search — only when there are notes */}
+          {noteList.length > 0 && <div className="mb-4">
             <Form method="get" className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -196,17 +196,29 @@ export default function NotesList() {
               {selectedCategory && <input type="hidden" name="category" value={selectedCategory} />}
               {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
             </Form>
-          </div>
+          </div>}
 
           {/* Note cards */}
           <div className="space-y-3">
             {noteList.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-400 mb-2">暂无笔记</p>
-                <Link to="/notes/new" className="text-primary-600 text-sm hover:text-primary-700">
-                  写第一篇笔记
-                </Link>
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-3">
+                  <FileText size={22} className="text-primary-400" />
+                </div>
+                <p className="text-[14px] font-semibold text-gray-700 mb-1">还没有笔记</p>
+                <p className="text-[12px] text-gray-500 mb-4">选择一个模板快速开始，或直接新建</p>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  {[
+                    { label: "📝 会议记录", title: "会议记录" },
+                    { label: "💡 灵感速记", title: "灵感速记" },
+                    { label: "📁 项目文档", title: "项目文档" },
+                  ].map((t) => (
+                    <Link key={t.title} to={`/notes/new?title=${encodeURIComponent(t.title)}`}
+                      className="px-3 py-2 border border-dashed border-gray-200 rounded-xl text-[12px] text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+                      {t.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             ) : (
               noteList.map((note) => {

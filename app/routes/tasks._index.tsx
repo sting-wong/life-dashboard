@@ -138,8 +138,8 @@ export default function TaskList() {
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      {/* Filters — only when there are tasks */}
+      {taskList.length > 0 && <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1 min-w-0">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -176,16 +176,29 @@ export default function TaskList() {
             ))}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Task List */}
       <div className="space-y-2">
         {items.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <p className="text-gray-400 mb-2">暂无任务</p>
-            <Link to="/tasks/new" className="text-primary-600 text-sm hover:text-primary-700">
-              创建第一个任务
-            </Link>
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 size={22} className="text-primary-400" />
+            </div>
+            <p className="text-[14px] font-semibold text-gray-700 mb-1">还没有任务</p>
+            <p className="text-[12px] text-gray-500 mb-4">创建任务后，你可以设置优先级、截止日期和子任务</p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              {[
+                { title: "规划今天的工作", priority: "high" },
+                { title: "完成一件重要的事", priority: "urgent" },
+                { title: "复盘昨天的进展", priority: "medium" },
+              ].map((t) => (
+                <Link key={t.title} to={`/tasks/new?title=${encodeURIComponent(t.title)}&priority=${t.priority}`}
+                  className="px-3 py-2 border border-dashed border-gray-200 rounded-xl text-[12px] text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+                  + {t.title}
+                </Link>
+              ))}
+            </div>
           </div>
         ) : (
           items.map((task, index) => {

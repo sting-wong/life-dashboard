@@ -57,12 +57,15 @@ export default function TopBar({
         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8A8F98] pointer-events-none" />
         <input
           type="text"
-          placeholder="搜索... (⌘K)"
+          placeholder="搜索..."
           onFocus={(e) => { e.target.blur(); openSearch(); }}
           readOnly
           className="w-full pl-9 pr-3 py-2 md:py-2.5 bg-[#F4F6F5] border-none rounded-[18px] text-[13px]
                      placeholder:text-[#8A8F98] focus:outline-none focus:ring-2 focus:ring-primary-100 cursor-pointer"
         />
+        <span className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-0.5 text-[10px] text-[#B0B5BC] bg-white border border-[#E8ECEA] rounded px-1 py-0.5 pointer-events-none select-none">
+          ⌘K
+        </span>
       </div>
 
       {/* Right */}

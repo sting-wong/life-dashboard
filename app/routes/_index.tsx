@@ -114,6 +114,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .all()
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+  const isNewUser = allTasks.length === 0 && allNotes.length === 0 && allHabits.length === 0 && todaySchedule.length === 0;
+
   return json({
     stats: { totalTasks: allTasks.length, todayTasks: todayTasks.length, inProgress: inProgressTasks.length, doneToday: doneToday.length, activeGoals: activeGoals.length },
     pendingTasks,
@@ -130,6 +132,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     analyticsData,
     hasMultipleAccounts: allAccounts.length > 1,
     todaySchedule,
+    isNewUser,
   });
 }
 
@@ -258,7 +261,7 @@ function TaskRow({ task }: { task: any }) {
 }
 
 export default function Dashboard() {
-  const { stats, pendingTasks, activeGoals, habits: habitList, insights, analyticsData, todaySchedule } = useLoaderData<typeof loader>();
+  const { stats, pendingTasks, activeGoals, habits: habitList, insights, analyticsData, todaySchedule, isNewUser } = useLoaderData<typeof loader>();
   const analyticsLast = analyticsData?.metrics[analyticsData.metrics.length - 1];
 
   // Today's status — localStorage persisted
@@ -292,11 +295,11 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
 
       {/* ─── Header ─── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] text-[#8A8F98] font-medium mb-1">{todayStr}</p>
-          {editingStatus ? (
-            <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] text-[#8A8F98] font-medium mb-1">{todayStr}</p>
+            {editingStatus ? (
               <input
                 ref={statusInputRef}
                 type="text"
@@ -309,34 +312,73 @@ export default function Dashboard() {
                 onBlur={saveStatus}
                 maxLength={60}
                 placeholder="今天想做什么？"
-                className="text-[22px] font-bold text-gray-900 tracking-tight bg-transparent border-none focus:outline-none w-full placeholder:text-gray-300"
+                className="text-[20px] md:text-[22px] font-bold text-gray-900 tracking-tight bg-transparent border-none focus:outline-none w-full placeholder:text-gray-300"
               />
-            </div>
-          ) : (
-            <button
-              onClick={openEdit}
-              className="text-left group flex items-baseline gap-2"
-            >
-              <h1 className={cn(
-                "text-[22px] font-bold tracking-tight transition-colors",
-                statusText ? "text-gray-900" : "text-gray-300"
-              )}>
-                {statusText || "今天想做什么？"}
-              </h1>
-              <span className="text-[11px] text-[#C0C5CC] opacity-0 group-hover:opacity-100 transition-opacity">点击编辑</span>
-            </button>
-          )}
+            ) : (
+              <button onClick={openEdit} className="text-left group flex items-baseline gap-2 w-full">
+                <h1 className={cn(
+                  "text-[20px] md:text-[22px] font-bold tracking-tight transition-colors break-words text-left",
+                  statusText ? "text-gray-900" : "text-gray-300"
+                )}>
+                  {statusText || "今天想做什么？"}
+                </h1>
+                <span className="hidden md:inline text-[11px] text-[#C0C5CC] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">点击编辑</span>
+              </button>
+            )}
+          </div>
+          {/* 桌面端：按钮横排；移动端：只显示主按钮 */}
+          <div className="flex items-center gap-2 shrink-0 pt-1">
+            <span className="hidden md:block"><QuickLinkSave /></span>
+            <Link to="/tasks/new" className="btn-primary flex items-center gap-1.5 text-[13px]">
+              <Plus size={14} /><span>新建任务</span>
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 pt-1 flex-wrap justify-end">
+        {/* 移动端：收藏链接降级为次要小按钮 */}
+        <div className="md:hidden">
           <QuickLinkSave />
-          <Link to="/tasks/new" className="btn-primary flex items-center gap-1.5 text-[13px]">
-            <Plus size={14} />新建任务
-          </Link>
         </div>
       </div>
 
-      {/* ─── Stat Cards ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ─── Stat Cards or Onboarding ─── */}
+      {isNewUser ? (
+        <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+          <p className="text-[13px] font-bold text-gray-900 mb-3">开始使用 — 完成这三步</p>
+          <div className="space-y-2">
+            <Link to="/tasks/new" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F4F6F5] transition-colors group">
+              <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0 group-hover:border-primary-400 transition-colors">
+                <ListTodo size={14} className="text-gray-400 group-hover:text-primary-500" />
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-gray-700">创建第一个任务</p>
+                <p className="text-[11px] text-[#8A8F98]">记录你今天最重要的事</p>
+              </div>
+              <svg className="ml-auto text-gray-300 group-hover:text-primary-400 transition-colors" width="16" height="16" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
+            <Link to="/schedule" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F4F6F5] transition-colors group">
+              <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0 group-hover:border-primary-400 transition-colors">
+                <CalendarClock size={14} className="text-gray-400 group-hover:text-primary-500" />
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-gray-700">安排今天的日程</p>
+                <p className="text-[11px] text-[#8A8F98]">用时间块规划每个时间段</p>
+              </div>
+              <svg className="ml-auto text-gray-300 group-hover:text-primary-400 transition-colors" width="16" height="16" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
+            <Link to="/habits" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F4F6F5] transition-colors group">
+              <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0 group-hover:border-primary-400 transition-colors">
+                <Flame size={14} className="text-gray-400 group-hover:text-primary-500" />
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-gray-700">建立一个习惯</p>
+                <p className="text-[11px] text-[#8A8F98]">每天坚持，积累连击天数</p>
+              </div>
+              <svg className="ml-auto text-gray-300 group-hover:text-primary-400 transition-colors" width="16" height="16" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Primary card */}
         <Link to="/tasks" className="relative rounded-[20px] bg-primary-700 p-5 overflow-hidden flex flex-col justify-between min-h-[130px] hover:bg-primary-800 transition-colors group">
           <div className="absolute inset-0 opacity-[0.07]" style={{
@@ -386,6 +428,7 @@ export default function Dashboard() {
           href="/tasks"
         />
       </div>
+      )}
 
       {/* ─── Main Grid ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
