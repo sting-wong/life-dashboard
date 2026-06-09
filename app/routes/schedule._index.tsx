@@ -561,7 +561,7 @@ export default function SchedulePage() {
   const progressColor = progressPct >= 80 ? "#1A7A4A" : progressPct >= 50 ? "#3B82F6" : "#9CA3AF";
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>

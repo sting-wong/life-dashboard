@@ -73,8 +73,8 @@ export default function Sidebar() {
             <span className="text-white font-bold text-sm">S</span>
           </div>
           <div>
-            <h1 className="text-[15px] font-bold text-gray-900 leading-tight">Sting</h1>
-            <p className="text-[10px] text-[#8A8F98] font-medium leading-tight">Notion</p>
+            <h1 className="text-[15px] font-bold text-gray-900 leading-tight">我的空间</h1>
+            <p className="text-[10px] text-[#8A8F98] font-medium leading-tight">个人效率助手</p>
           </div>
         </div>
       </div>

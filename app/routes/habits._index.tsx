@@ -114,7 +114,7 @@ export default function HabitsList() {
   const { habits: habitList } = useLoaderData<typeof loader>();
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">习惯</h1>
         <Link
