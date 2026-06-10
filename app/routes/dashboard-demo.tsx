@@ -1,17 +1,13 @@
-import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { Form, Link, useLoaderData, useFetcher } from "@remix-run/react";
 import { db } from "~/db/index.server";
-import { tasks, goals, notes, habits, habitLogs, analyticsAccounts, analyticsMetrics, scheduleBlocks } from "~/db/schema.server";
-import { desc, eq, and, isNull, ne } from "drizzle-orm";
-import { v4 as uuid } from "uuid";
-import { cn, getPriorityColor, getPriorityLabel } from "~/lib/utils";
-import {
-  CheckCircle2, Circle, Clock, CalendarClock, Timer, Flame,
-  Link2, Loader2, Check, Plus,
-} from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { scheduleBlocks, habits, habitLogs, tasks, goals, analyticsAccounts, analyticsMetrics } from "~/db/schema.server";
+import { eq, and, isNull, ne } from "drizzle-orm";
+import { getPriorityColor, getPriorityLabel, cn } from "~/lib/utils";
 import { getCurrentBlock, getNextBlock, getVisibleBlocks } from "~/lib/schedule.server";
 import { calcStreak } from "~/lib/habits.server";
+import { CheckCircle2, Circle, Clock, CalendarClock, Timer, Flame } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 
 // ── Helpers ──────────────────────────────────────────────
 function getLocalDateString(d: Date): string {
@@ -21,30 +17,21 @@ function getLocalDateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// Client-safe time parser — mirrors schedule.server.ts but usable in components
 function timeToMin(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }
 
+// ── Loader ───────────────────────────────────────────────
 export async function loader({ request }: LoaderFunctionArgs) {
   const today = getLocalDateString(new Date());
 
-  // ── Schedule blocks ───────────────────────────────────
   const blocks = db.select().from(scheduleBlocks)
     .where(eq(scheduleBlocks.date, today))
     .all();
 
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const currentBlock = getCurrentBlock(blocks, nowMin);
-  const nextBlock = getNextBlock(blocks, nowMin);
-  const visibleBlocks = getVisibleBlocks(blocks, nowMin);
-  const completedCount = blocks.filter((b) => b.completed).length;
-  const totalCount = blocks.length;
-  const remainingCount = blocks.filter((b) => !b.completed).length;
-
-  // ── Habits (new: habitsWithStatus; legacy: habits list) ──
-  const allHabits = db.select().from(habits).orderBy(desc(habits.createdAt)).all();
+  const allHabits = db.select().from(habits).all();
   const todayLogs = db.select().from(habitLogs)
     .where(eq(habitLogs.date, today))
     .all();
@@ -63,30 +50,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   });
 
-  // Legacy habits format for old UI
-  const todayLogSet = new Set(todayLogs.filter((l) => l.completed).map((l) => l.habitId));
-  const logsByHabit = new Map<string, string[]>();
-  for (const log of allLogs) {
-    if (!logsByHabit.has(log.habitId)) logsByHabit.set(log.habitId, []);
-    logsByHabit.get(log.habitId)!.push(log.date);
-  }
-  const habitsLegacy = allHabits.map((h) => {
-    const completedToday = todayLogSet.has(h.id);
-    const logs = logsByHabit.get(h.id) ?? [];
-    let streak = 0;
-    const cursor = new Date();
-    cursor.setHours(0, 0, 0, 0);
-    if (!completedToday) cursor.setDate(cursor.getDate() - 1);
-    for (const date of logs) {
-      const expected = cursor.toISOString().split("T")[0];
-      if (date === expected) { streak++; cursor.setDate(cursor.getDate() - 1); }
-      else if (date < expected) break;
-    }
-    return { ...h, completedToday, streak };
-  });
-
-  // ── Week tasks (new groups) ───────────────────────────
+  // ── Week tasks ─────────────────────────────────────────
   const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+
+  // 本周日（周日 = 0，本周最后一天）
   const nowDate = new Date();
   const daysUntilSunday = nowDate.getDay() === 0 ? 0 : 7 - nowDate.getDay();
   const weekEnd = getLocalDateString(new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + daysUntilSunday));
@@ -98,7 +65,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const urgentTasks = openTasks.filter((t) => {
     const due = t.dueDate?.split("T")[0] ?? null;
-    return due && due <= today;
+    return due && due <= today;       // 逾期 + 今日
   });
   const weekTasks = openTasks.filter((t) => {
     const due = t.dueDate?.split("T")[0] ?? null;
@@ -107,50 +74,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const noDateTasks = openTasks.filter((t) => !t.dueDate);
   const weekTaskGroups = { urgentTasks, weekTasks, noDateTasks };
 
-  // ── Goals (new: goalsWithProgress; legacy: activeGoals + stats) ──
-  const allTasks = db.select().from(tasks).all();
-  const allGoals = db.select().from(goals).all();
-  const allNotes = db.select().from(notes).all();
-  const ms7d = Date.now() - 7 * 86400000;
-  const nowStr = today;
-
-  const activeGoalsLegacy = allGoals.filter((g) => g.status === "active").map((goal) => {
-    const goalTasks = allTasks.filter((t) => t.goalId === goal.id);
-    const doneCount = goalTasks.filter((t) => t.status === "done").length;
-    return { ...goal, taskCount: goalTasks.length, doneCount, progress: goalTasks.length > 0 ? Math.round((doneCount / goalTasks.length) * 100) : 0 };
-  });
-
-  const goalMap = new Map(allGoals.map((g) => [g.id, g.title]));
-  const priorityOrderLegacy: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-  const pendingTasks = allTasks
-    .filter((t) => t.status !== "done")
-    .sort((a, b) => (priorityOrderLegacy[a.priority] ?? 2) - (priorityOrderLegacy[b.priority] ?? 2))
-    .map((t) => ({
-      ...t,
-      goalTitle: t.goalId ? goalMap.get(t.goalId) : undefined,
-      isOverdue: t.dueDate ? t.dueDate.split("T")[0] < nowStr : false,
-    }));
-
-  const todayTasksLegacy = allTasks.filter((t) => t.dueDate?.split("T")[0] === nowStr);
-  const inProgressTasks = allTasks.filter((t) => t.status === "in_progress");
-  const doneToday = allTasks.filter((t) => t.status === "done" && t.updatedAt?.split("T")[0] === nowStr);
-  const weekDoneTotal = allTasks.filter((t) => {
-    if (t.status !== "done" || !t.updatedAt) return false;
-    return new Date(t.updatedAt).getTime() > Date.now() - 7 * 86400000;
-  }).length;
-
-  const notesThisWeek = allNotes.filter((n) => new Date(n.createdAt).getTime() > ms7d).length;
-  const notesToday = allNotes.filter((n) => n.createdAt?.split("T")[0] === nowStr).length;
-  const completedGoals = allGoals.filter((g) => g.status === "completed").length;
-  const avgGoalProgress = activeGoalsLegacy.length > 0
-    ? Math.round(activeGoalsLegacy.reduce((s, g) => s + g.progress, 0) / activeGoalsLegacy.length)
-    : 0;
-
-  const isNewUser = allTasks.length === 0 && allNotes.length === 0 && allHabits.length === 0 && blocks.length === 0;
-
-  // ── Goals progress (new format) ───────────────────────
-  const activeGoalsNew = db.select().from(goals).where(eq(goals.status, "active")).all();
-  const goalsWithProgress = activeGoalsNew.map((goal) => {
+  // ── Goals progress ────────────────────────────────────
+  const activeGoals = db.select().from(goals).where(eq(goals.status, "active")).all();
+  const goalsWithProgress = activeGoals.map((goal) => {
     const goalTasks = db.select({ status: tasks.status }).from(tasks).where(eq(tasks.goalId, goal.id)).all();
     const doneCount = goalTasks.filter((t) => t.status === "done").length;
     return {
@@ -162,7 +88,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   });
 
-  // ── Analytics (new: summary; legacy: single account) ─
+  // ── Analytics summary ─────────────────────────────────
   const allAccounts = db.select().from(analyticsAccounts).all();
   const analyticsSummary = allAccounts.map((account) => {
     const latest = db.select().from(analyticsMetrics)
@@ -173,144 +99,78 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return { id: account.id, platform: account.platform, accountName: account.accountName, latest };
   });
 
-  const defaultAccount = allAccounts[0] ?? null;
-  let analyticsData: { account: typeof defaultAccount; metrics: { date: string; followers: number; views: number; likes: number }[] } | null = null;
-  if (defaultAccount) {
-    const recentMetrics = db
-      .select({ date: analyticsMetrics.date, followers: analyticsMetrics.followers, views: analyticsMetrics.views, likes: analyticsMetrics.likes })
-      .from(analyticsMetrics)
-      .where(eq(analyticsMetrics.accountId, defaultAccount.id))
-      .orderBy(desc(analyticsMetrics.date))
-      .limit(14)
-      .all()
-      .reverse();
-    analyticsData = { account: defaultAccount, metrics: recentMetrics as { date: string; followers: number; views: number; likes: number }[] };
-  }
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
 
-  const todaySchedule = blocks.slice().sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const currentBlock = getCurrentBlock(blocks, nowMin);
+  const nextBlock = getNextBlock(blocks, nowMin);
+  const visibleBlocks = getVisibleBlocks(blocks, nowMin);
+  const completedCount = blocks.filter((b) => b.completed).length;
+  const totalCount = blocks.length;
+  const remainingCount = blocks.filter((b) => !b.completed).length;
 
-  return json({
-    // ── New fields (for upcoming new UI) ──
-    today,
-    currentBlock,
-    nextBlock,
-    visibleBlocks,
-    completedCount,
-    totalCount,
-    remainingCount,
-    nowMin,
-    habitsWithStatus,
-    weekTaskGroups,
-    goalsWithProgress,
-    analyticsSummary,
-    // ── Legacy fields (for existing UI — removed in Task 4) ──
-    stats: { totalTasks: allTasks.length, todayTasks: todayTasksLegacy.length, inProgress: inProgressTasks.length, doneToday: doneToday.length, activeGoals: activeGoalsLegacy.length },
-    pendingTasks,
-    activeGoals: activeGoalsLegacy.slice(0, 4),
-    habits: habitsLegacy,
-    insights: { totalNotes: allNotes.length, notesThisWeek, notesToday, completedGoals, avgGoalProgress, weekDoneTotal },
-    analyticsData,
-    hasMultipleAccounts: allAccounts.length > 1,
-    todaySchedule,
-    isNewUser,
-  });
+  return json({ today, blocks, currentBlock, nextBlock, visibleBlocks, completedCount, totalCount, remainingCount, nowMin, habitsWithStatus, weekTaskGroups, goalsWithProgress, analyticsSummary });
 }
 
+// ── Action ───────────────────────────────────────────────
 export async function action({ request }: ActionFunctionArgs) {
-  const formData = await request.formData();
-  const intent = formData.get("intent");
+  const fd = await request.formData();
+  const intent = fd.get("intent") as string;
+  const now = new Date().toISOString();
 
-  if (intent === "quick-task") {
-    const title = formData.get("title") as string;
-    if (!title?.trim()) return json({ error: "Title is required" }, { status: 400 });
-    const now = new Date().toISOString();
-    db.insert(tasks).values({ id: uuid(), title: title.trim(), status: "todo", priority: "medium", createdAt: now, updatedAt: now }).run();
-  } else if (intent === "quick-link") {
-    const url = (formData.get("url") as string)?.trim();
-    const title = (formData.get("title") as string)?.trim();
-    const ogImage = (formData.get("ogImage") as string) || null;
-    if (url && title) {
-      const now = new Date().toISOString();
-      db.insert(notes).values({
-        id: uuid(),
-        title,
-        content: "",
-        categoryId: null,
-        type: "link",
-        sourceUrl: url,
-        ogImage,
-        createdAt: now,
-        updatedAt: now,
-      }).run();
+  if (intent === "focus-complete") {
+    const blockId = fd.get("blockId") as string;
+    db.update(scheduleBlocks)
+      .set({ completed: true, updatedAt: now })
+      .where(eq(scheduleBlocks.id, blockId))
+      .run();
+  }
+
+  if (intent === "habit-toggle") {
+    const habitId = fd.get("habitId") as string;
+    const date = fd.get("date") as string;
+    const existing = db.select().from(habitLogs)
+      .where(and(eq(habitLogs.habitId, habitId), eq(habitLogs.date, date)))
+      .get();
+    if (existing) {
+      db.update(habitLogs)
+        .set({ completed: !existing.completed })
+        .where(eq(habitLogs.id, existing.id))
+        .run();
+    } else {
+      const { v4: uuid } = await import("uuid");
+      db.insert(habitLogs).values({ id: uuid(), habitId, date, completed: true }).run();
     }
-    return json({ ok: true });
-  } else if (intent === "complete-task") {
-    // Temporary: supports legacy TaskRow until Task 4 removes it
-    const taskId = formData.get("taskId") as string;
-    if (taskId) {
-      db.update(tasks).set({ status: "done", updatedAt: new Date().toISOString() }).where(eq(tasks.id, taskId)).run();
-    }
-  } else if (intent === "focus-complete") {
-    const blockId = formData.get("blockId") as string;
-    if (blockId) {
-      const now = new Date().toISOString();
-      db.update(scheduleBlocks)
-        .set({ completed: true, updatedAt: now })
-        .where(eq(scheduleBlocks.id, blockId))
+  }
+
+  if (intent === "task-toggle") {
+    const taskId = fd.get("taskId") as string;
+    const current = db.select({ status: tasks.status }).from(tasks).where(eq(tasks.id, taskId)).get();
+    if (current) {
+      db.update(tasks)
+        .set({ status: current.status === "done" ? "todo" : "done", updatedAt: now })
+        .where(eq(tasks.id, taskId))
         .run();
     }
-  } else if (intent === "habit-toggle") {
-    const habitId = formData.get("habitId") as string;
-    const date = formData.get("date") as string;
-    if (habitId && date) {
-      const existing = db.select().from(habitLogs)
-        .where(and(eq(habitLogs.habitId, habitId), eq(habitLogs.date, date)))
-        .get();
-      if (existing) {
-        db.update(habitLogs)
-          .set({ completed: !existing.completed })
-          .where(eq(habitLogs.id, existing.id))
-          .run();
-      } else {
-        const { v4: uuidv4 } = await import("uuid");
-        db.insert(habitLogs).values({ id: uuidv4(), habitId, date, completed: true }).run();
-      }
-    }
-  } else if (intent === "task-toggle") {
-    const taskId = formData.get("taskId") as string;
-    if (taskId) {
-      const now = new Date().toISOString();
-      const current = db.select({ status: tasks.status }).from(tasks).where(eq(tasks.id, taskId)).get();
-      if (current) {
-        db.update(tasks)
-          .set({ status: current.status === "done" ? "todo" : "done", updatedAt: now })
-          .where(eq(tasks.id, taskId))
-          .run();
-      }
-    }
   }
 
-  return redirect("/");
+  return json({ ok: true });
 }
 
-// ── Block type labels ────────────────────────────────────
+// ── Block type label ─────────────────────────────────────
 const BLOCK_TYPE_LABELS: Record<string, string> = {
   focus: "专注", break: "休息", meal: "用餐", free: "自由", routine: "日常",
-};
-
-const BLOCK_TYPE_BG: Record<string, string> = {
-  focus: "bg-primary-600", break: "bg-sky-400", meal: "bg-amber-400",
-  free: "bg-violet-400", routine: "bg-gray-400",
 };
 
 // ── Focus timer (localStorage, client-only) ──────────────
 function FocusTimer({ blockId }: { blockId: string }) {
   const STORAGE_KEY = `focus-timer-${blockId}`;
   const [running, setRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(0); // seconds
   const startRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Restore state from localStorage on mount
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -326,6 +186,7 @@ function FocusTimer({ blockId }: { blockId: string }) {
     }
   }, [STORAGE_KEY]);
 
+  // Tick
   useEffect(() => {
     if (running) {
       intervalRef.current = setInterval(() => {
@@ -385,6 +246,7 @@ function FocusCard({
 }) {
   const fetcher = useFetcher();
 
+  // No blocks at all today
   if (totalCount === 0) {
     return (
       <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
@@ -410,11 +272,15 @@ function FocusCard({
     );
   }
 
+  // Active block
   if (currentBlock) {
     const isCompleting = fetcher.state !== "idle";
     const alreadyDone = currentBlock.completed;
     return (
-      <div className="rounded-2xl p-5 text-white" style={{ backgroundColor: currentBlock.color }}>
+      <div
+        className="rounded-2xl p-5 text-white"
+        style={{ backgroundColor: currentBlock.color }}
+      >
         <div className="flex items-center justify-between mb-1">
           <p className="text-[11px] font-bold text-white/70 uppercase tracking-wider">当下焦点</p>
           <span className="flex items-center gap-1 text-[10px] font-semibold text-white bg-white/20 px-2 py-0.5 rounded-full">
@@ -422,10 +288,12 @@ function FocusCard({
             进行中
           </span>
         </div>
+
         <p className="text-[11px] text-white/60 mt-2">
           {currentBlock.startTime} – {currentBlock.endTime} · {BLOCK_TYPE_LABELS[currentBlock.blockType] ?? currentBlock.blockType}
         </p>
         <p className="text-[18px] font-bold text-white leading-tight mt-1">{currentBlock.title}</p>
+
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <fetcher.Form method="post">
             <input type="hidden" name="intent" value="focus-complete" />
@@ -435,7 +303,9 @@ function FocusCard({
               disabled={alreadyDone || isCompleting}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-full transition-colors",
-                alreadyDone ? "bg-white/20 text-white/50 cursor-default" : "bg-white text-gray-800 hover:bg-white/90"
+                alreadyDone
+                  ? "bg-white/20 text-white/50 cursor-default"
+                  : "bg-white text-gray-800 hover:bg-white/90"
               )}
             >
               {alreadyDone ? <CheckCircle2 size={13} /> : <Circle size={13} />}
@@ -443,7 +313,9 @@ function FocusCard({
             </button>
           </fetcher.Form>
         </div>
+
         <FocusTimer blockId={currentBlock.id} />
+
         {nextBlock && (
           <p className="text-[11px] text-white/50 mt-3">
             下一个 → {nextBlock.startTime} {nextBlock.title}
@@ -453,6 +325,7 @@ function FocusCard({
     );
   }
 
+  // Gap between blocks — show next block
   if (nextBlock) {
     return (
       <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
@@ -466,7 +339,9 @@ function FocusCard({
             <p className="text-[13px] font-semibold text-gray-800 mt-0.5">
               下一个：{nextBlock.startTime} {nextBlock.title}
             </p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{BLOCK_TYPE_LABELS[nextBlock.blockType] ?? nextBlock.blockType}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {BLOCK_TYPE_LABELS[nextBlock.blockType] ?? nextBlock.blockType}
+            </p>
           </div>
         </div>
         <Link to={`/schedule?date=${today}`} className="mt-4 inline-block text-[12px] text-primary-600 hover:text-primary-700">
@@ -476,6 +351,7 @@ function FocusCard({
     );
   }
 
+  // All blocks done for today (or today's time past last block)
   return (
     <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
       <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">当下焦点</p>
@@ -505,6 +381,7 @@ function StatusBar({ remainingCount, totalCount, today }: { remainingCount: numb
   const dateLabel = new Date(today + "T12:00:00").toLocaleDateString("zh-CN", {
     month: "long", day: "numeric", weekday: "long",
   });
+
   return (
     <div className="mb-4 bg-white rounded-2xl border border-[#E8ECEA] px-4 py-2.5 flex items-center gap-3 flex-wrap">
       <span className="text-[13px] font-semibold text-gray-700">{dateLabel}</span>
@@ -520,11 +397,13 @@ function StatusBar({ remainingCount, totalCount, today }: { remainingCount: numb
   );
 }
 
-// ── Goals card ───────────────────────────────────────────
+// ── Goals Progress ───────────────────────────────────
 function GoalsCard({
   goalsWithProgress,
 }: {
-  goalsWithProgress: Array<{ id: string; title: string; taskCount: number; doneCount: number; progress: number }>;
+  goalsWithProgress: Array<{
+    id: string; title: string; taskCount: number; doneCount: number; progress: number;
+  }>;
 }) {
   if (goalsWithProgress.length === 0) {
     return (
@@ -532,11 +411,14 @@ function GoalsCard({
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">目标进度</p>
         <div className="text-center py-3">
           <p className="text-[13px] text-gray-400 mb-2">还没有进行中的目标</p>
-          <Link to="/goals/new" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">新建目标 →</Link>
+          <Link to="/goals/new" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">
+            新建目标 →
+          </Link>
         </div>
       </div>
     );
   }
+
   return (
     <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
       <div className="flex items-center justify-between mb-3">
@@ -547,14 +429,23 @@ function GoalsCard({
         {goalsWithProgress.map((goal) => (
           <Link key={goal.id} to={`/goals/${goal.id}`} className="group block">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary-600 truncate flex-1 pr-2 transition-colors">{goal.title}</span>
-              <span className="text-[11px] font-semibold text-gray-500 shrink-0">{goal.progress}%</span>
+              <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary-600 truncate flex-1 pr-2 transition-colors">
+                {goal.title}
+              </span>
+              <span className="text-[11px] font-semibold text-gray-500 shrink-0">
+                {goal.progress}%
+              </span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${goal.progress}%` }} />
+              <div
+                className="h-full bg-primary-500 rounded-full transition-all"
+                style={{ width: `${goal.progress}%` }}
+              />
             </div>
             {goal.taskCount > 0 ? (
-              <p className="text-[10px] text-gray-400 mt-0.5">{goal.doneCount} / {goal.taskCount} 个任务已完成</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {goal.doneCount} / {goal.taskCount} 个任务已完成
+              </p>
             ) : (
               <p className="text-[10px] text-gray-400 mt-0.5">未关联任务</p>
             )}
@@ -565,21 +456,25 @@ function GoalsCard({
   );
 }
 
-// ── Week tasks ───────────────────────────────────────────
+// ── Week Tasks ───────────────────────────────────────
 type TaskItem = {
   id: string; title: string; priority: string; dueDate: string | null; status: string;
 };
 
 function TaskRow({ task }: { task: TaskItem }) {
   const fetcher = useFetcher();
-  const optimisticDone = fetcher.state !== "idle" ? true : task.status === "done";
+  const optimisticDone =
+    fetcher.state !== "idle" ? true : task.status === "done";
+
   return (
     <div className={cn("flex items-start gap-2.5 py-1.5", optimisticDone && "opacity-50")}>
       <fetcher.Form method="post" className="shrink-0 mt-0.5">
         <input type="hidden" name="intent" value="task-toggle" />
         <input type="hidden" name="taskId" value={task.id} />
         <button type="submit" className="p-1 -m-1 text-gray-300 hover:text-primary-500 transition-colors">
-          {optimisticDone ? <CheckCircle2 size={15} className="text-primary-400" /> : <Circle size={15} />}
+          {optimisticDone
+            ? <CheckCircle2 size={15} className="text-primary-400" />
+            : <Circle size={15} />}
         </button>
       </fetcher.Form>
       <div className="flex-1 min-w-0">
@@ -594,18 +489,23 @@ function TaskRow({ task }: { task: TaskItem }) {
   );
 }
 
-function TaskGroup({ label, tasks: groupTasks, urgent }: { label: string; tasks: TaskItem[]; urgent?: boolean }) {
-  if (groupTasks.length === 0) return null;
-  const visible = groupTasks.slice(0, 3);
-  const hidden = groupTasks.length - 3;
+function TaskGroup({ label, tasks, urgent }: { label: string; tasks: TaskItem[]; urgent?: boolean }) {
+  if (tasks.length === 0) return null;
+  const visible = tasks.slice(0, 3);
+  const hidden = tasks.length - 3;
   return (
     <div className="mb-3 last:mb-0">
-      <p className={cn("text-[10px] font-bold uppercase tracking-wider mb-1", urgent ? "text-red-500" : "text-[#8A8F98]")}>{label}</p>
+      <p className={cn(
+        "text-[10px] font-bold uppercase tracking-wider mb-1",
+        urgent ? "text-red-500" : "text-[#8A8F98]"
+      )}>{label}</p>
       <div className="divide-y divide-gray-50">
         {visible.map((t) => <TaskRow key={t.id} task={t} />)}
       </div>
       {hidden > 0 && (
-        <Link to="/tasks" className="text-[11px] text-gray-400 hover:text-primary-600 mt-1 inline-block">还有 {hidden} 个 →</Link>
+        <Link to="/tasks" className="text-[11px] text-gray-400 hover:text-primary-600 mt-1 inline-block">
+          还有 {hidden} 个 →
+        </Link>
       )}
     </div>
   );
@@ -617,16 +517,22 @@ function WeekTasksCard({
   weekTaskGroups: { urgentTasks: TaskItem[]; weekTasks: TaskItem[]; noDateTasks: TaskItem[] };
 }) {
   const total = weekTaskGroups.urgentTasks.length + weekTaskGroups.weekTasks.length + weekTaskGroups.noDateTasks.length;
+
   return (
     <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">本周任务</p>
-        <Link to="/tasks" className="text-[11px] text-primary-600 hover:text-primary-700">全部 →</Link>
+        <Link to="/tasks" className="text-[11px] text-primary-600 hover:text-primary-700">
+          全部 →
+        </Link>
       </div>
+
       {total === 0 ? (
         <div className="text-center py-3">
           <p className="text-[13px] text-gray-400 mb-2">本周没有待办任务</p>
-          <Link to="/tasks/new" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">新建任务 →</Link>
+          <Link to="/tasks/new" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">
+            新建任务 →
+          </Link>
         </div>
       ) : (
         <>
@@ -639,15 +545,21 @@ function WeekTasksCard({
   );
 }
 
-// ── Habits card ──────────────────────────────────────────
+// ── Today's Habits ───────────────────────────────────
 function HabitsCard({
-  habitsWithStatus, today,
+  habitsWithStatus,
+  today,
 }: {
-  habitsWithStatus: Array<{ id: string; title: string; color: string | null; icon: string | null; completedToday: boolean; streak: number }>;
+  habitsWithStatus: Array<{
+    id: string; title: string; color: string | null;
+    icon: string | null; completedToday: boolean; streak: number;
+  }>;
   today: string;
 }) {
   const fetcher = useFetcher();
-  const pendingHabitId = fetcher.state !== "idle" ? (fetcher.formData?.get("habitId") as string | null) : null;
+  const pendingHabitId =
+    fetcher.state !== "idle" ? (fetcher.formData?.get("habitId") as string | null) : null;
+
   const optimisticCompletedCount = habitsWithStatus.filter((h) =>
     pendingHabitId === h.id ? !h.completedToday : h.completedToday
   ).length;
@@ -656,20 +568,37 @@ function HabitsCard({
     <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">今日习惯</p>
-        <Link to="/habits" className="text-[11px] text-primary-600 hover:text-primary-700">管理 →</Link>
+        <Link to="/habits" className="text-[11px] text-primary-600 hover:text-primary-700">
+          管理 →
+        </Link>
       </div>
+
       {habitsWithStatus.length === 0 ? (
         <div className="text-center py-3">
           <p className="text-[13px] text-gray-400 mb-2">还没有习惯</p>
-          <Link to="/habits/new" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">添加第一个习惯 →</Link>
+          <Link
+            to="/habits/new"
+            className="text-[12px] text-primary-600 hover:text-primary-700 font-medium"
+          >
+            添加第一个习惯 →
+          </Link>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
           {habitsWithStatus.map((habit) => {
             const dotColor = habit.color ?? "#1A7A4A";
-            const optimisticDone = pendingHabitId === habit.id ? !habit.completedToday : habit.completedToday;
+            const optimisticDone =
+              pendingHabitId === habit.id ? !habit.completedToday : habit.completedToday;
+
             return (
-              <div key={habit.id} className={cn("flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all", optimisticDone ? "bg-gray-50 opacity-80" : "bg-white")}>
+              <div
+                key={habit.id}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all",
+                  optimisticDone ? "bg-gray-50 opacity-80" : "bg-white"
+                )}
+              >
+                {/* toggle button */}
                 <fetcher.Form method="post" className="shrink-0">
                   <input type="hidden" name="intent" value="habit-toggle" />
                   <input type="hidden" name="habitId" value={habit.id} />
@@ -677,7 +606,10 @@ function HabitsCard({
                   <button
                     type="submit"
                     className="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors"
-                    style={{ borderColor: dotColor, backgroundColor: optimisticDone ? dotColor : "transparent" }}
+                    style={{
+                      borderColor: dotColor,
+                      backgroundColor: optimisticDone ? dotColor : "transparent",
+                    }}
                   >
                     {optimisticDone && (
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -686,13 +618,23 @@ function HabitsCard({
                     )}
                   </button>
                 </fetcher.Form>
+
+                {/* icon + title */}
                 <span className="text-sm">{habit.icon ?? ""}</span>
-                <span className={cn("text-[13px] font-medium flex-1 truncate", optimisticDone ? "line-through text-gray-400" : "text-gray-700")}>
+                <span
+                  className={cn(
+                    "text-[13px] font-medium flex-1 truncate",
+                    optimisticDone ? "line-through text-gray-400" : "text-gray-700"
+                  )}
+                >
                   {habit.title}
                 </span>
+
+                {/* streak */}
                 {habit.streak > 0 && (
                   <span className="flex items-center gap-0.5 text-[11px] font-semibold text-amber-500 shrink-0">
-                    <Flame size={11} />{habit.streak}
+                    <Flame size={11} />
+                    {habit.streak}
                   </span>
                 )}
               </div>
@@ -700,23 +642,49 @@ function HabitsCard({
           })}
         </div>
       )}
+
+      {/* summary */}
       {habitsWithStatus.length > 0 && (
-        <p className="text-[11px] text-gray-400 mt-3 text-right">{optimisticCompletedCount} / {habitsWithStatus.length} 已完成</p>
+        <p className="text-[11px] text-gray-400 mt-3 text-right">
+          {optimisticCompletedCount} / {habitsWithStatus.length} 已完成
+        </p>
       )}
     </div>
   );
 }
 
-// ── Rhythm bar ───────────────────────────────────────────
-function RhythmBar({ visibleBlocks, nowMin, totalCount, today }: {
-  visibleBlocks: any[]; nowMin: number; totalCount: number; today: string;
+// ── Today's Rhythm ───────────────────────────────────
+const BLOCK_TYPE_BG: Record<string, string> = {
+  focus: "bg-primary-600",
+  break: "bg-sky-400",
+  meal: "bg-amber-400",
+  free: "bg-violet-400",
+  routine: "bg-gray-400",
+};
+
+function RhythmBar({
+  visibleBlocks,
+  nowMin,
+  totalCount,
+  today,
+}: {
+  visibleBlocks: any[];
+  nowMin: number;
+  totalCount: number;
+  today: string;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">今日节奏</p>
-        <Link to={`/schedule?date=${today}`} className="text-[11px] text-primary-600 hover:text-primary-700">查看完整 →</Link>
+        <Link
+          to={`/schedule?date=${today}`}
+          className="text-[11px] text-primary-600 hover:text-primary-700"
+        >
+          查看完整 →
+        </Link>
       </div>
+
       {totalCount === 0 ? (
         <p className="text-[13px] text-gray-400 text-center py-3">今天还没有时间块</p>
       ) : (
@@ -727,23 +695,65 @@ function RhythmBar({ visibleBlocks, nowMin, totalCount, today }: {
             const isDone = block.completed;
             const isNow = !isDone && s <= nowMin && nowMin < e;
             const isPast = !isDone && e <= nowMin;
+
             const colorClass = BLOCK_TYPE_BG[block.blockType] ?? "bg-gray-400";
+
             return (
               <div
                 key={block.id}
                 className={cn(
                   "flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all",
-                  isNow ? "bg-primary-50 border border-primary-200" : isPast ? "bg-amber-50" : isDone ? "opacity-50" : "bg-gray-50"
+                  isNow
+                    ? "bg-primary-50 border border-primary-200"
+                    : isPast
+                    ? "bg-amber-50"
+                    : isDone
+                    ? "opacity-50"
+                    : "bg-gray-50"
                 )}
               >
-                <span className={cn("w-2 h-2 rounded-full shrink-0", isPast ? "bg-amber-400" : colorClass, isNow && "ring-2 ring-primary-400 ring-offset-1")} />
-                <span className="text-[11px] text-gray-400 w-[84px] shrink-0 font-mono">{block.startTime}–{block.endTime}</span>
-                <span className={cn("text-[13px] font-medium flex-1 truncate", isDone ? "line-through text-gray-400" : isNow ? "text-primary-700 font-semibold" : isPast ? "text-amber-700" : "text-gray-700")}>
+                {/* color dot */}
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    isPast ? "bg-amber-400" : colorClass,
+                    isNow && "ring-2 ring-primary-400 ring-offset-1"
+                  )}
+                />
+
+                {/* time */}
+                <span className="text-[11px] text-gray-400 w-[84px] shrink-0 font-mono">
+                  {block.startTime}–{block.endTime}
+                </span>
+
+                {/* title */}
+                <span
+                  className={cn(
+                    "text-[13px] font-medium flex-1 truncate",
+                    isDone
+                      ? "line-through text-gray-400"
+                      : isNow
+                      ? "text-primary-700 font-semibold"
+                      : isPast
+                      ? "text-amber-700"
+                      : "text-gray-700"
+                  )}
+                >
                   {block.title}
                 </span>
+
+                {/* status badge */}
                 {isDone && <CheckCircle2 size={13} className="text-primary-400 shrink-0" />}
-                {isNow && <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-1.5 py-0.5 rounded-full shrink-0">进行中</span>}
-                {isPast && <span className="text-[10px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">未完成</span>}
+                {isNow && (
+                  <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-1.5 py-0.5 rounded-full shrink-0">
+                    进行中
+                  </span>
+                )}
+                {isPast && (
+                  <span className="text-[10px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">
+                    未完成
+                  </span>
+                )}
               </div>
             );
           })}
@@ -753,7 +763,7 @@ function RhythmBar({ visibleBlocks, nowMin, totalCount, today }: {
   );
 }
 
-// ── Analytics card ───────────────────────────────────────
+// ── Analytics Summary ────────────────────────────────
 type AnalyticsAccount = {
   id: string; platform: string; accountName: string;
   latest: { followers?: number | null; views?: number | null; likes?: number | null } | null;
@@ -764,18 +774,25 @@ function AnalyticsCard({ analyticsSummary }: { analyticsSummary: AnalyticsAccoun
     <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">数据摘要</p>
-        <Link to="/analytics" className="text-[11px] text-primary-600 hover:text-primary-700">详情 →</Link>
+        <Link to="/analytics" className="text-[11px] text-primary-600 hover:text-primary-700">
+          详情 →
+        </Link>
       </div>
+
       {analyticsSummary.length === 0 ? (
         <div className="text-center py-3">
           <p className="text-[13px] text-gray-400 mb-2">还没有关联账户</p>
-          <Link to="/analytics/accounts" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">添加账户 →</Link>
+          <Link to="/analytics/accounts" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">
+            添加账户 →
+          </Link>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
           {analyticsSummary.map((acc) => (
             <div key={acc.id}>
-              <p className="text-[11px] font-semibold text-gray-500 mb-1 truncate">{acc.platform} · {acc.accountName}</p>
+              <p className="text-[11px] font-semibold text-gray-500 mb-1 truncate">
+                {acc.platform} · {acc.accountName}
+              </p>
               {acc.latest ? (
                 <div className="flex gap-3">
                   {acc.latest.followers != null && (
@@ -808,156 +825,56 @@ function AnalyticsCard({ analyticsSummary }: { analyticsSummary: AnalyticsAccoun
   );
 }
 
-// ── Quick link save ──────────────────────────────────────
-function QuickLinkSave() {
-  const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
-  const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState("");
-  const [parsing, setParsing] = useState(false);
-  const [parsed, setParsed] = useState<{ title: string; image: string } | null>(null);
-  const [parseError, setParseError] = useState("");
-  const [saved, setSaved] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const tryParse = async (val: string) => {
-    const trimmed = val.trim();
-    if (!trimmed || !/^https?:\/\/.{4}/i.test(trimmed)) return;
-    setParsing(true);
-    setParseError("");
-    setParsed(null);
-    try {
-      const res = await fetch("/api/fetch-url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: trimmed }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "解析失败");
-      setParsed({ title: data.title, image: data.image });
-    } catch (err: any) {
-      setParseError(err.message || "无法解析");
-    } finally {
-      setParsing(false);
-    }
-  };
-
-  const handleSave = () => {
-    if (!url.trim() || !parsed) return;
-    fetcher.submit({ intent: "quick-link", url: url.trim(), title: parsed.title, ogImage: parsed.image || "" }, { method: "post", action: "/" });
-    setSaved(true);
-    setTimeout(() => { setOpen(false); setUrl(""); setParsed(null); setSaved(false); }, 1200);
-  };
-
-  const openPanel = () => {
-    setOpen(true); setUrl(""); setParsed(null); setParseError(""); setSaved(false);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
+// ── Placeholder card ─────────────────────────────────────
+function PlaceholderCard({ title }: { title: string }) {
   return (
-    <div className="relative" ref={wrapRef}>
-      <button type="button" onClick={openPanel} className="btn-outline-green text-[13px] flex items-center gap-1.5">
-        <Link2 size={13} />收藏链接
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-2xl shadow-[0_16px_48px_rgba(15,23,42,0.12)] border border-[#E8ECEA] p-4 z-50">
-          <p className="text-[13px] font-semibold text-gray-800 mb-3">快速收藏链接</p>
-          <div className="flex gap-2 mb-3">
-            <input
-              ref={inputRef} type="url" value={url}
-              onChange={(e) => { setUrl(e.target.value); setParsed(null); setParseError(""); }}
-              onBlur={() => tryParse(url)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); tryParse(url); } }}
-              placeholder="粘贴链接..."
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[13px] font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-            {parsing && <Loader2 size={16} className="animate-spin text-[#8A8F98] self-center shrink-0" />}
-          </div>
-          {parseError && <p className="text-[11px] text-red-500 mb-2">{parseError}</p>}
-          {parsed && (
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#F8FAF9] mb-3">
-              {parsed.image && <img src={parsed.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-              <p className="text-[12px] font-medium text-gray-800 line-clamp-2 flex-1">{parsed.title}</p>
-            </div>
-          )}
-          <button
-            type="button" onClick={handleSave} disabled={!parsed || saved}
-            className={cn("w-full py-2 rounded-xl text-[13px] font-semibold transition-all flex items-center justify-center gap-1.5",
-              saved ? "bg-green-500 text-white" : parsed ? "bg-primary-600 hover:bg-primary-700 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed"
-            )}
-          >
-            {saved ? <><Check size={14} />已保存</> : "保存到笔记"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Quick actions bar ────────────────────────────────────
-function QuickActionsBar() {
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <Link to="/tasks/new" className="btn-primary flex items-center gap-1.5 text-[13px]">
-        <Plus size={14} />新建任务
-      </Link>
-      <QuickLinkSave />
-      <Link to="/notes/new" className="btn-outline flex items-center gap-1.5 text-[13px]">
-        快速记录
-      </Link>
-      <Link to="/api-keys" className="btn-outline flex items-center gap-1.5 text-[13px]">
-        API 密钥
-      </Link>
+    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-4">
+      <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">{title}</p>
+      <div className="h-16 bg-gray-50 rounded-xl flex items-center justify-center">
+        <span className="text-[12px] text-gray-300">即将接入数据</span>
+      </div>
     </div>
   );
 }
 
 // ── Page ─────────────────────────────────────────────────
-export default function Dashboard() {
+export default function DashboardDemo() {
   const { today, currentBlock, nextBlock, visibleBlocks, remainingCount, totalCount, nowMin, habitsWithStatus, weekTaskGroups, goalsWithProgress, analyticsSummary } = useLoaderData<typeof loader>();
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <StatusBar remainingCount={remainingCount} totalCount={totalCount} today={today} />
-
-      {/* Quick actions — desktop only at top */}
-      <div className="hidden md:block mb-5">
-        <QuickActionsBar />
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">行动驾驶舱</h1>
+          <p className="text-sm text-[#8A8F98] mt-0.5">
+            Demo — 与旧首页 <Link to="/" className="text-primary-600 underline">/</Link> 对比
+          </p>
+        </div>
       </div>
+
+      <StatusBar remainingCount={remainingCount} totalCount={totalCount} today={today} />
 
       <div className="flex flex-col md:flex-row md:items-start gap-4">
         {/* Left column */}
         <div className="flex-1 flex flex-col gap-4 min-w-0">
-          <FocusCard currentBlock={currentBlock} nextBlock={nextBlock} today={today} remainingCount={remainingCount} totalCount={totalCount} />
-
-          {/* Mobile: quick actions after FocusCard */}
-          <div className="md:hidden">
-            <QuickActionsBar />
-          </div>
-
-          {/* Mobile: habits before RhythmBar */}
+          <FocusCard
+            currentBlock={currentBlock}
+            nextBlock={nextBlock}
+            today={today}
+            remainingCount={remainingCount}
+            totalCount={totalCount}
+          />
           <div className="md:hidden">
             <HabitsCard habitsWithStatus={habitsWithStatus} today={today} />
           </div>
-
           <RhythmBar visibleBlocks={visibleBlocks} nowMin={nowMin} totalCount={totalCount} today={today} />
-
-          {/* Mobile: remaining right-column cards below RhythmBar */}
-          <div className="md:hidden flex flex-col gap-4">
-            <WeekTasksCard weekTaskGroups={weekTaskGroups} />
-            <GoalsCard goalsWithProgress={goalsWithProgress} />
-            <AnalyticsCard analyticsSummary={analyticsSummary} />
-          </div>
         </div>
 
-        {/* Right column — desktop only */}
-        <div className="homepage-sidebar shrink-0 hidden md:flex flex-col gap-4">
-          <HabitsCard habitsWithStatus={habitsWithStatus} today={today} />
+        {/* Right column */}
+        <div className="dashboard-demo-sidebar shrink-0 flex flex-col gap-4">
+          <div className="hidden md:block">
+            <HabitsCard habitsWithStatus={habitsWithStatus} today={today} />
+          </div>
           <WeekTasksCard weekTaskGroups={weekTaskGroups} />
           <GoalsCard goalsWithProgress={goalsWithProgress} />
           <AnalyticsCard analyticsSummary={analyticsSummary} />

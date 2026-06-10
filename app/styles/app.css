@@ -11,6 +11,19 @@
 }
 
 @layer components {
+  .dashboard-demo-sidebar,
+  .homepage-sidebar {
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .dashboard-demo-sidebar,
+    .homepage-sidebar {
+      flex: 0 0 18rem;
+      max-width: 18rem;
+    }
+  }
+
   .card {
     @apply bg-white rounded-[18px] border border-[#E8ECEA] shadow-card;
   }
@@ -70,4 +83,10 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full; }
 ::-webkit-scrollbar-thumb:hover { @apply bg-gray-300; }
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.25s ease-out; }
 
