@@ -1,12 +1,13 @@
 import { Link, useLocation, useNavigate } from "@remix-run/react";
 import {
-  LayoutDashboard, ListTodo, CheckSquare, Calendar, FileText, Target, CalendarClock,
+  LayoutDashboard, LayoutGrid, ListTodo, CheckSquare, Calendar, FileText, Target, CalendarClock,
   Plus, CalendarDays, GitGraph, TrendingUp, Zap, KeyRound,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 
 const mainItems = [
   { to: "/", icon: LayoutDashboard, label: "仪表盘" },
+  { to: "/workspace", icon: LayoutGrid, label: "工作台" },
   { to: "/tasks", icon: ListTodo, label: "任务" },
   { to: "/habits", icon: CheckSquare, label: "习惯" },
   { to: "/schedule", icon: CalendarClock, label: "日程" },

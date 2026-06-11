@@ -184,6 +184,18 @@ export const scheduleTemplates = sqliteTable("schedule_templates", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── Workspace Sections ───────────────────────────────
+export const workspaceSections = sqliteTable("workspace_sections", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  template: text("template").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  collapsed: integer("collapsed").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const notifications = sqliteTable("notifications", {
   id: text("id").primaryKey(),
   type: text("type", { enum: ["task_due", "task_overdue", "goal_milestone", "system"] })
