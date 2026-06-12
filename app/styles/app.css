@@ -5,7 +5,7 @@
 @layer base {
   body {
     @apply text-gray-900 antialiased;
-    background: #EEF1F0;
+    background: #F7F5F0;
     min-height: 100vh;
   }
 }

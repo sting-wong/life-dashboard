@@ -387,7 +387,7 @@ function FocusCard({
 
   if (totalCount === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+      <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">当下焦点</p>
         <div className="text-center py-4">
           <CalendarClock size={28} className="mx-auto text-gray-300 mb-2" />
@@ -414,7 +414,7 @@ function FocusCard({
     const isCompleting = fetcher.state !== "idle";
     const alreadyDone = currentBlock.completed;
     return (
-      <div className="rounded-2xl p-5 text-white" style={{ backgroundColor: currentBlock.color }}>
+      <div className="rounded-2xl p-5 text-white" style={{ background: currentBlock.blockType === 'focus' ? 'linear-gradient(135deg, #1A7A4A 0%, #1f9457 100%)' : currentBlock.color }}>
         <div className="flex items-center justify-between mb-1">
           <p className="text-[11px] font-bold text-white/70 uppercase tracking-wider">当下焦点</p>
           <span className="flex items-center gap-1 text-[10px] font-semibold text-white bg-white/20 px-2 py-0.5 rounded-full">
@@ -455,7 +455,7 @@ function FocusCard({
 
   if (nextBlock) {
     return (
-      <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+      <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">当下焦点</p>
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
@@ -477,7 +477,7 @@ function FocusCard({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+    <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">当下焦点</p>
       {remainingCount > 0 ? (
         <div className="flex items-center gap-3">
@@ -506,7 +506,7 @@ function StatusBar({ remainingCount, totalCount, today }: { remainingCount: numb
     month: "long", day: "numeric", weekday: "long",
   });
   return (
-    <div className="mb-4 bg-white rounded-2xl border border-[#E8ECEA] px-4 py-2.5 flex items-center gap-3 flex-wrap">
+    <div className="mb-4 bg-white rounded-2xl px-4 py-2.5 flex items-center gap-3 flex-wrap" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <span className="text-[13px] font-semibold text-gray-700">{dateLabel}</span>
       <span className="text-[#E8ECEA]">·</span>
       {totalCount === 0 ? (
@@ -528,7 +528,7 @@ function GoalsCard({
 }) {
   if (goalsWithProgress.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+      <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-3">目标进度</p>
         <div className="text-center py-3">
           <p className="text-[13px] text-gray-400 mb-2">还没有进行中的目标</p>
@@ -538,7 +538,7 @@ function GoalsCard({
     );
   }
   return (
-    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+    <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">目标进度</p>
         <Link to="/goals" className="text-[11px] text-primary-600 hover:text-primary-700">全部 →</Link>
@@ -618,7 +618,7 @@ function WeekTasksCard({
 }) {
   const total = weekTaskGroups.urgentTasks.length + weekTaskGroups.weekTasks.length + weekTaskGroups.noDateTasks.length;
   return (
-    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+    <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">本周任务</p>
         <Link to="/tasks" className="text-[11px] text-primary-600 hover:text-primary-700">全部 →</Link>
@@ -653,7 +653,7 @@ function HabitsCard({
   ).length;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+    <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">今日习惯</p>
         <Link to="/habits" className="text-[11px] text-primary-600 hover:text-primary-700">管理 →</Link>
@@ -669,7 +669,7 @@ function HabitsCard({
             const dotColor = habit.color ?? "#1A7A4A";
             const optimisticDone = pendingHabitId === habit.id ? !habit.completedToday : habit.completedToday;
             return (
-              <div key={habit.id} className={cn("flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all", optimisticDone ? "bg-gray-50 opacity-80" : "bg-white")}>
+              <div key={habit.id} className={cn("flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all", optimisticDone ? "bg-[#f5f4f0] opacity-80" : "bg-white")}>
                 <fetcher.Form method="post" className="shrink-0">
                   <input type="hidden" name="intent" value="habit-toggle" />
                   <input type="hidden" name="habitId" value={habit.id} />
@@ -712,7 +712,7 @@ function RhythmBar({ visibleBlocks, nowMin, totalCount, today }: {
   visibleBlocks: any[]; nowMin: number; totalCount: number; today: string;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+    <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">今日节奏</p>
         <Link to={`/schedule?date=${today}`} className="text-[11px] text-primary-600 hover:text-primary-700">查看完整 →</Link>
@@ -761,7 +761,7 @@ type AnalyticsAccount = {
 
 function AnalyticsCard({ analyticsSummary }: { analyticsSummary: AnalyticsAccount[] }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E8ECEA] p-5">
+    <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider">数据摘要</p>
         <Link to="/analytics" className="text-[11px] text-primary-600 hover:text-primary-700">详情 →</Link>
@@ -902,7 +902,7 @@ function QuickLinkSave() {
 // ── Quick actions bar ────────────────────────────────────
 function QuickActionsBar() {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-2.5 flex-wrap">
       <Link to="/tasks/new" className="btn-primary flex items-center gap-1.5 text-[13px]">
         <Plus size={14} />新建任务
       </Link>
@@ -911,7 +911,7 @@ function QuickActionsBar() {
         快速记录
       </Link>
       <Link to="/api-keys" className="btn-outline flex items-center gap-1.5 text-[13px]">
-        API 密钥
+        密钥账号
       </Link>
     </div>
   );
@@ -922,7 +922,7 @@ export default function Dashboard() {
   const { today, currentBlock, nextBlock, visibleBlocks, remainingCount, totalCount, nowMin, habitsWithStatus, weekTaskGroups, goalsWithProgress, analyticsSummary } = useLoaderData<typeof loader>();
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-5 md:p-8 max-w-5xl mx-auto">
       <StatusBar remainingCount={remainingCount} totalCount={totalCount} today={today} />
 
       {/* Quick actions — desktop only at top */}
