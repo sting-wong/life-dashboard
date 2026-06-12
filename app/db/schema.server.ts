@@ -184,6 +184,16 @@ export const scheduleTemplates = sqliteTable("schedule_templates", {
   createdAt: text("created_at").notNull(),
 });
 
+// ─── Workspace Pages ──────────────────────────────────
+export const workspacePages = sqliteTable("workspace_pages", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull().default("无标题"),
+  content: text("content").notNull().default(""),
+  emoji: text("emoji").notNull().default("📝"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 // ─── Workspace Sections ───────────────────────────────
 export const workspaceSections = sqliteTable("workspace_sections", {
   id: text("id").primaryKey(),

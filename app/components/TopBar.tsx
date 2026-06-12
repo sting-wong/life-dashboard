@@ -20,15 +20,19 @@ export default function TopBar({
   unreadNotifs?: NotifItem[];
   unreadCount?: number;
 }) {
-  const today = new Date().toLocaleDateString("zh-CN", {
-    month: "long", day: "numeric", weekday: "long",
-  });
-
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [today, setToday] = useState("");
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+
+  // Compute date only on client to avoid SSR/client hydration mismatch
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("zh-CN", {
+      month: "long", day: "numeric", weekday: "long",
+    }));
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {

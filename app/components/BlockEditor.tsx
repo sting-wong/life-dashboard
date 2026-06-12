@@ -5,6 +5,7 @@ interface BlockEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   editable?: boolean;
+  borderless?: boolean;
 }
 
 const BlockEditorInner = lazy(() => import("./BlockEditorInner"));

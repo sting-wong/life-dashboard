@@ -65,6 +65,10 @@
 .ProseMirror h2 { @apply text-xl font-semibold mb-2; }
 .ProseMirror h3 { @apply text-lg font-medium mb-1.5; }
 .ProseMirror p { @apply mb-2; }
+
+/* ─── Workspace editor: more comfortable line-height ─── */
+.prose-workspace .ProseMirror p { line-height: 1.85; font-size: 15px; color: #374151; }
+.prose-workspace .ProseMirror { min-height: 320px; }
 .ProseMirror ul { @apply list-disc pl-6 mb-2; }
 .ProseMirror ol { @apply list-decimal pl-6 mb-2; }
 .ProseMirror li { @apply mb-1; }
