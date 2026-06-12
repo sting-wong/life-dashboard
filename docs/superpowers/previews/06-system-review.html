@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preview 6 — UI System Review</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #F7F5F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: #1a1a1a; }
+
+  /* ── Layout ── */
+  .page { max-width: 1200px; margin: 0 auto; padding: 40px 32px 80px; }
+
+  /* ── Page header ── */
+  .page-header { margin-bottom: 48px; }
+  .page-header h1 { font-size: 28px; font-weight: 800; color: #1a1a1a; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .page-header p { font-size: 14px; color: #6b7280; line-height: 1.6; }
+  .page-date { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+  .status-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #1A7A4A; background: #edf7f1; padding: 4px 12px; border-radius: 20px; margin-top: 10px; }
+
+  /* ── Section headers ── */
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: #e8e5e0; }
+  .section-subtitle { font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
+  .section-desc { font-size: 13px; color: #6b7280; line-height: 1.6; margin-bottom: 20px; }
+
+  /* ── Card base ── */
+  .card { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+  /* ── Board thumbnails ── */
+  .boards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .board-thumb { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; text-decoration: none; }
+  .board-thumb:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-2px); }
+  .board-preview { height: 140px; position: relative; overflow: hidden; }
+  .board-info { padding: 12px 14px; }
+  .board-name { font-size: 13px; font-weight: 700; color: #1a1a1a; margin-bottom: 3px; }
+  .board-duty { font-size: 11px; color: #9ca3af; line-height: 1.4; }
+  .board-badge { position: absolute; top: 8px; right: 8px; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #edf7f1; color: #1A7A4A; }
+
+  /* Mini board sketches (CSS art) */
+  .mini-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 32px; background: #fff; border-right: 1px solid #f0ede8; display: flex; flex-direction: column; gap: 4px; padding: 8px 4px; }
+  .mini-nav-dot { height: 6px; border-radius: 3px; background: #f0ede8; }
+  .mini-nav-dot.active { background: #1A7A4A; width: 24px; }
+  .mini-content { position: absolute; left: 36px; right: 0; top: 0; bottom: 0; padding: 8px; display: flex; flex-direction: column; gap: 4px; background: #F7F5F0; }
+  .mini-card { background: #fff; border-radius: 5px; flex-shrink: 0; }
+  .mini-green { background: #1A7A4A; border-radius: 5px; }
+  .mini-amber { background: #D4820A; border-radius: 5px; }
+  .mini-line { height: 4px; border-radius: 2px; background: #f0ede8; }
+  .mini-line.dark { background: #d1d5db; }
+
+  /* ── Color tokens ── */
+  .token-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .token-card { padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); background: #fff; }
+  .token-swatch { height: 48px; border-radius: 8px; margin-bottom: 10px; }
+  .token-name { font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 3px; }
+  .token-hex { font-size: 11px; font-family: 'SF Mono', monospace; color: #9ca3af; }
+  .token-usage { font-size: 11px; color: #9ca3af; margin-top: 4px; line-height: 1.4; }
+
+  /* ── Typography tokens ── */
+  .typo-row { display: flex; align-items: baseline; gap: 20px; padding: 12px 0; border-bottom: 1px solid #f0ede8; }
+  .typo-row:last-child { border-bottom: none; }
+  .typo-sample { flex: 1; }
+  .typo-spec { font-size: 11px; font-family: 'SF Mono', monospace; color: #9ca3af; white-space: nowrap; }
+
+  /* ── Spacing & radius tokens ── */
+  .spacing-grid { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .spacing-item { text-align: center; }
+  .spacing-box { background: #edf7f1; border-radius: 4px; margin: 0 auto 6px; }
+  .spacing-label { font-size: 10px; font-family: 'SF Mono', monospace; color: #9ca3af; }
+
+  /* ── Component showcase ── */
+  .component-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+
+  /* Buttons */
+  .btn-primary { padding: 8px 18px; background: #1A7A4A; color: #fff; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-secondary { padding: 8px 18px; background: #edf7f1; color: #1A7A4A; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-ghost { padding: 8px 18px; background: #f5f4f0; color: #6b7280; border-radius: 9px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-danger { padding: 8px 18px; background: #fef2f2; color: #ef4444; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 7px; }
+
+  /* Pills */
+  .pill-active { padding: 5px 14px; background: #1A7A4A; color: #fff; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill-inactive { padding: 5px 14px; background: #f0ede8; color: #6b7280; border-radius: 20px; font-size: 12px; font-weight: 500; }
+
+  /* Badges */
+  .badge-green { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: #d1fae5; color: #1A7A4A; }
+  .badge-amber { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: #fef3c7; color: #D4820A; }
+  .badge-blue { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: #dbeafe; color: #2563eb; }
+  .badge-red { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: #fee2e2; color: #ef4444; }
+  .badge-gray { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: #f5f4f0; color: #9ca3af; }
+
+  /* Input */
+  .input-demo { padding: 8px 12px; border-radius: 9px; border: 1px solid #e5e2dc; background: #fff; font-size: 13px; color: #374151; width: 220px; outline: none; }
+  .input-focus { border-color: #1A7A4A; box-shadow: 0 0 0 3px rgba(26,122,74,0.1); }
+
+  /* ── Consistency checklist ── */
+  .check-table { width: 100%; border-collapse: collapse; }
+  .check-table th { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: 0.5px; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid #f0ede8; background: #fafaf9; }
+  .check-table td { font-size: 13px; padding: 12px 14px; border-bottom: 1px solid #f9f8f6; vertical-align: middle; }
+  .check-table tr:last-child td { border-bottom: none; }
+  .check-table tr:hover td { background: #fafaf9; }
+  .check-icon { font-size: 14px; }
+  .pass { color: #1A7A4A; }
+  .warn { color: #D4820A; }
+  .note { color: #3b82f6; }
+
+  /* ── IA migration ── */
+  .migration-grid { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 0; align-items: stretch; }
+  .migration-col { padding: 0; }
+  .migration-arrow { display: flex; align-items: center; justify-content: center; font-size: 18px; color: #9ca3af; padding-top: 40px; }
+  .ia-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+  .ia-old { background: #f5f4f0; color: #6b7280; }
+  .ia-old.removed { text-decoration: line-through; opacity: 0.5; }
+  .ia-new { background: #edf7f1; color: #1A7A4A; font-weight: 600; }
+  .ia-merge { background: #fef3c7; color: #D4820A; }
+  .ia-label { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; margin-top: 16px; }
+  .ia-label:first-child { margin-top: 0; }
+
+  /* ── Risk / decision notes ── */
+  .risk-card { padding: 16px 20px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid; }
+  .risk-security { background: #eff6ff; border-color: #3b82f6; }
+  .risk-ux { background: #fff7ed; border-color: #D4820A; }
+  .risk-arch { background: #f0fdf4; border-color: #1A7A4A; }
+  .risk-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .risk-body { font-size: 12px; line-height: 1.6; color: #6b7280; }
+  .risk-body strong { color: #374151; }
+
+  /* ── Page boundary cards ── */
+  .boundary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .boundary-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 14px; }
+  .boundary-name { font-size: 13px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .boundary-job { font-size: 12px; font-weight: 600; color: #1A7A4A; background: #edf7f1; padding: 4px 10px; border-radius: 6px; margin-bottom: 10px; }
+  .boundary-do { font-size: 11px; color: #6b7280; line-height: 1.5; }
+  .boundary-dont { font-size: 11px; color: #ef4444; margin-top: 6px; opacity: 0.8; }
+  .boundary-dont::before { content: '✗ '; }
+
+  /* ── Next steps ── */
+  .next-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .next-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 16px; }
+  .next-num { font-size: 11px; font-weight: 700; color: #9ca3af; margin-bottom: 8px; }
+  .next-title { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
+  .next-desc { font-size: 12px; color: #6b7280; line-height: 1.5; }
+  .next-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-top: 8px; }
+  .tag-now { background: #edf7f1; color: #1A7A4A; }
+  .tag-later { background: #f0ede8; color: #9ca3af; }
+  .tag-decision { background: #fef3c7; color: #D4820A; }
+
+  @media (max-width: 900px) {
+    .boards-grid { grid-template-columns: repeat(3, 1fr); }
+    .token-grid { grid-template-columns: repeat(2, 1fr); }
+    .boundary-grid { grid-template-columns: repeat(2, 1fr); }
+    .next-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .page { padding: 20px 16px 60px; }
+    .boards-grid { grid-template-columns: repeat(2, 1fr); }
+    .migration-grid { grid-template-columns: 1fr; }
+    .migration-arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <h1>✦ Product UI System v1 · System Review</h1>
+    <p>5 个板块 Preview 全部完成，本页汇总设计 Token、一致性检查、IA 迁移方案与后续实现决策。<br>验收通过后作为 Implementation Plan 的视觉基准文档。</p>
+    <div class="page-date">2026-06-12 · Preview 6 of 6</div>
+    <div class="status-chip">✓ 全部 5 个板块 Preview 已验收通过</div>
+  </div>
+
+  <!-- 1. Board Thumbnails -->
+  <div class="section">
+    <div class="section-title">01 · 五个板块缩略视图</div>
+    <div class="boards-grid">
+
+      <!-- 01 首页 -->
+      <a href="01-homepage.html" class="board-thumb">
+        <div class="board-preview" style="background:#F7F5F0;">
+          <div class="mini-sidebar">
+            <div class="mini-nav-dot active" style="width:22px; height:6px; border-radius:3px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:16px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+          </div>
+          <div class="mini-content">
+            <!-- Status bar -->
+            <div style="height:14px; background:#fff; border-radius:4px; margin-bottom:3px; flex-shrink:0;"></div>
+            <!-- Quick actions -->
+            <div style="height:10px; background:#fff; border-radius:3px; margin-bottom:4px; flex-shrink:0;"></div>
+            <!-- Two-col -->
+            <div style="display:flex; gap:3px; flex:1;">
+              <!-- Focus card -->
+              <div style="flex:1; background:#1A7A4A; border-radius:5px; padding:4px;">
+                <div style="height:4px; background:rgba(255,255,255,0.4); border-radius:2px; margin-bottom:2px;"></div>
+                <div style="height:3px; background:rgba(255,255,255,0.25); border-radius:2px; width:70%; margin-bottom:6px;"></div>
+                <div style="display:flex; gap:2px; margin-bottom:2px;">
+                  <div style="height:6px; background:rgba(255,255,255,0.3); border-radius:2px; flex:1;"></div>
+                  <div style="height:6px; background:rgba(255,255,255,0.2); border-radius:2px; flex:1;"></div>
+                  <div style="height:6px; background:rgba(255,255,255,0.2); border-radius:2px; flex:1;"></div>
+                </div>
+              </div>
+              <!-- Habits card -->
+              <div style="width:32px; background:#fff; border-radius:5px; padding:4px;">
+                <div style="height:3px; background:#f0ede8; border-radius:2px; margin-bottom:3px;"></div>
+                <div style="height:3px; background:#1A7A4A; border-radius:2px; width:80%; margin-bottom:2px;"></div>
+                <div style="height:3px; background:#f0ede8; border-radius:2px; margin-bottom:2px;"></div>
+                <div style="height:3px; background:#f0ede8; border-radius:2px; width:60%;"></div>
+              </div>
+            </div>
+            <!-- Bottom cards -->
+            <div style="display:flex; gap:3px; margin-top:3px; flex-shrink:0;">
+              <div style="flex:1; height:20px; background:#fff; border-radius:4px;"></div>
+              <div style="flex:1; height:20px; background:#fff; border-radius:4px;"></div>
+              <div style="flex:1; height:20px; background:#fff; border-radius:4px;"></div>
+            </div>
+          </div>
+          <div class="board-badge">✓ 验收</div>
+        </div>
+        <div class="board-info">
+          <div class="board-name">⊞ 首页</div>
+          <div class="board-duty">今天执行什么</div>
+        </div>
+      </a>
+
+      <!-- 02 工作台 -->
+      <a href="02-workspace.html" class="board-thumb">
+        <div class="board-preview" style="background:#F7F5F0;">
+          <div class="mini-sidebar">
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot active" style="width:22px; height:6px; border-radius:3px;"></div>
+            <div class="mini-nav-dot" style="width:16px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+          </div>
+          <div class="mini-content" style="flex-direction:row; padding:4px 4px; gap:4px;">
+            <!-- Page list -->
+            <div style="width:30px; background:#fff; border-radius:4px; padding:4px 3px; display:flex; flex-direction:column; gap:3px;">
+              <div style="height:4px; background:#1A7A4A; border-radius:2px;"></div>
+              <div style="height:3px; background:#f0ede8; border-radius:2px;"></div>
+              <div style="height:3px; background:#f0ede8; border-radius:2px;"></div>
+            </div>
+            <!-- Editor -->
+            <div style="flex:1; background:#fff; border-radius:4px; padding:6px 5px; display:flex; flex-direction:column; gap:3px;">
+              <div style="height:5px; background:#1a1a1a; border-radius:2px; width:70%; margin-bottom:4px;"></div>
+              <div style="height:3px; background:#f0ede8; border-radius:2px;"></div>
+              <div style="height:3px; background:#f0ede8; border-radius:2px; width:90%;"></div>
+              <div style="height:3px; background:#f0ede8; border-radius:2px; width:75%;"></div>
+              <!-- Slash menu -->
+              <div style="background:#fff; border:1px solid #e5e2dc; border-radius:4px; padding:3px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-top:4px;">
+                <div style="height:3px; background:#edf7f1; border-radius:2px; margin-bottom:2px;"></div>
+                <div style="height:3px; background:#f0ede8; border-radius:2px; margin-bottom:2px;"></div>
+                <div style="height:3px; background:#f0ede8; border-radius:2px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="board-badge">✓ 验收</div>
+        </div>
+        <div class="board-info">
+          <div class="board-name">✏️ 工作台</div>
+          <div class="board-duty">自由整理与创作</div>
+        </div>
+      </a>
+
+      <!-- 03 灵感收藏 -->
+      <a href="03-inbox.html" class="board-thumb">
+        <div class="board-preview" style="background:#F7F5F0;">
+          <div class="mini-sidebar">
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:16px; height:4px;"></div>
+            <div class="mini-nav-dot active" style="width:22px; height:6px; border-radius:3px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+          </div>
+          <div class="mini-content">
+            <!-- Quick add -->
+            <div style="height:12px; background:#fff; border-radius:4px; margin-bottom:3px; flex-shrink:0;"></div>
+            <!-- Filter pills -->
+            <div style="display:flex; gap:2px; margin-bottom:4px; flex-shrink:0;">
+              <div style="height:6px; width:20px; background:#1A7A4A; border-radius:3px;"></div>
+              <div style="height:6px; width:16px; background:#f0ede8; border-radius:3px;"></div>
+              <div style="height:6px; width:16px; background:#f0ede8; border-radius:3px;"></div>
+              <div style="height:6px; width:16px; background:#f0ede8; border-radius:3px;"></div>
+            </div>
+            <!-- Card grid -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; flex:1;">
+              <div style="background:#fff; border-radius:4px; overflow:hidden;">
+                <div style="height:28px; background:linear-gradient(135deg,#1A7A4A,#2d9862);"></div>
+                <div style="padding:3px; display:flex; flex-direction:column; gap:2px;">
+                  <div style="height:3px; background:#1a1a1a; border-radius:2px; width:80%;"></div>
+                  <div style="height:2px; background:#f0ede8; border-radius:2px;"></div>
+                </div>
+              </div>
+              <div style="background:#fff; border-radius:4px; overflow:hidden;">
+                <div style="height:28px; background:linear-gradient(135deg,#D4820A,#f5a623);"></div>
+                <div style="padding:3px; display:flex; flex-direction:column; gap:2px;">
+                  <div style="height:3px; background:#1a1a1a; border-radius:2px; width:70%;"></div>
+                  <div style="height:2px; background:#f0ede8; border-radius:2px;"></div>
+                </div>
+              </div>
+              <div style="background:#fff; border-radius:4px; padding:4px; display:flex; flex-direction:column; gap:2px; border-top:2px solid #D4820A;">
+                <div style="height:3px; background:#f0ede8; border-radius:2px;"></div>
+                <div style="height:3px; background:#f0ede8; border-radius:2px; width:80%;"></div>
+              </div>
+              <div style="background:#fff; border-radius:4px; padding:4px; display:flex; flex-direction:column; gap:2px; border-top:2px solid #3b82f6;">
+                <div style="height:3px; background:#f0ede8; border-radius:2px;"></div>
+                <div style="height:3px; background:#f0ede8; border-radius:2px; width:60%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="board-badge">✓ 验收</div>
+        </div>
+        <div class="board-info">
+          <div class="board-name">📥 灵感收藏</div>
+          <div class="board-duty">看到就存，稍后整理</div>
+        </div>
+      </a>
+
+      <!-- 04 自媒体 -->
+      <a href="04-creator.html" class="board-thumb">
+        <div class="board-preview" style="background:#F7F5F0;">
+          <div class="mini-sidebar">
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:16px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot active" style="width:22px; height:6px; border-radius:3px;"></div>
+          </div>
+          <div class="mini-content" style="flex-direction:row; padding:4px; gap:4px;">
+            <!-- Left: topic list -->
+            <div style="flex:1; display:flex; flex-direction:column; gap:3px;">
+              <div style="background:#fff; border-radius:4px; padding:4px;">
+                <div style="height:3px; background:#1a1a1a; border-radius:2px; width:90%; margin-bottom:2px;"></div>
+                <div style="height:4px; background:#fef3c7; border-radius:2px; width:40%;"></div>
+              </div>
+              <div style="background:#fff; border-radius:4px; padding:4px;">
+                <div style="height:3px; background:#1a1a1a; border-radius:2px; width:80%; margin-bottom:2px;"></div>
+                <div style="height:4px; background:#dbeafe; border-radius:2px; width:40%;"></div>
+              </div>
+              <div style="background:#fff; border-radius:4px; padding:3px; display:grid; grid-template-columns:repeat(7,1fr); gap:1px; margin-top:2px;">
+                <div style="height:5px; background:#f0ede8; border-radius:1px;"></div>
+                <div style="height:5px; background:#f0ede8; border-radius:1px;"></div>
+                <div style="height:5px; background:#1A7A4A; border-radius:1px;"></div>
+                <div style="height:5px; background:#f0ede8; border-radius:1px;"></div>
+                <div style="height:5px; background:#1A7A4A; border-radius:1px;"></div>
+                <div style="height:5px; background:#f0ede8; border-radius:1px;"></div>
+                <div style="height:5px; background:#D4820A; border-radius:1px;"></div>
+              </div>
+            </div>
+            <!-- Right: data -->
+            <div style="width:36px; display:flex; flex-direction:column; gap:3px;">
+              <div style="background:#fff; border-radius:4px; padding:3px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px;">
+                <div style="height:8px; display:flex; flex-direction:column; align-items:center; gap:1px;">
+                  <div style="font-size:5px; font-weight:700; color:#1a1a1a; line-height:1;">12k</div>
+                  <div style="height:2px; background:#f0ede8; border-radius:1px; width:100%;"></div>
+                </div>
+                <div style="height:8px; display:flex; flex-direction:column; align-items:center; gap:1px;">
+                  <div style="font-size:5px; font-weight:700; color:#ef4444; line-height:1;">234</div>
+                  <div style="height:2px; background:#f0ede8; border-radius:1px; width:100%;"></div>
+                </div>
+                <div style="height:8px; display:flex; flex-direction:column; align-items:center; gap:1px;">
+                  <div style="font-size:5px; font-weight:700; color:#1A7A4A; line-height:1;">+28</div>
+                  <div style="height:2px; background:#f0ede8; border-radius:1px; width:100%;"></div>
+                </div>
+              </div>
+              <!-- Sparkline -->
+              <div style="background:#fff; border-radius:4px; padding:3px; height:30px; display:flex; align-items:flex-end; gap:1px;">
+                <svg width="100%" height="100%" viewBox="0 0 30 20">
+                  <path d="M0,18 L5,14 L10,12 L15,15 L20,8 L25,5 L30,2" fill="none" stroke="#1A7A4A" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="board-badge">✓ 验收</div>
+        </div>
+        <div class="board-info">
+          <div class="board-name">📊 自媒体</div>
+          <div class="board-duty">内容生产与数据复盘</div>
+        </div>
+      </a>
+
+      <!-- 05 密钥账号 -->
+      <a href="05-vault.html" class="board-thumb">
+        <div class="board-preview" style="background:#F7F5F0;">
+          <div class="mini-sidebar">
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:16px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot" style="width:18px; height:4px;"></div>
+            <div class="mini-nav-dot active" style="width:22px; height:6px; border-radius:3px; margin-top:4px;"></div>
+          </div>
+          <div class="mini-content">
+            <!-- Search bar -->
+            <div style="height:12px; background:#fff; border-radius:4px; margin-bottom:4px; flex-shrink:0;"></div>
+            <!-- Rows -->
+            <div style="background:#fff; border-radius:6px; overflow:hidden; flex:1;">
+              <div style="padding:5px 6px; border-bottom:1px solid #f0ede8; display:flex; align-items:center; gap:4px;">
+                <div style="width:10px; height:10px; border-radius:2px; background:#f0fdf4; flex-shrink:0;"></div>
+                <div style="flex:1; height:3px; background:#d1d5db; border-radius:2px;"></div>
+                <div style="font-size:6px; font-family:monospace; color:#9ca3af; letter-spacing:1px;">●●●●●</div>
+              </div>
+              <div style="padding:5px 6px; border-bottom:1px solid #f9f8f6; display:flex; align-items:center; gap:4px; background:#fafdf9;">
+                <div style="width:10px; height:10px; border-radius:2px; background:#f0fdf4; flex-shrink:0; border:1px solid #bbf7d0;"></div>
+                <div style="flex:1; font-size:6px; font-family:monospace; color:#374151;">sk-proj-Ab…</div>
+              </div>
+              <div style="padding:5px 6px; border-bottom:1px solid #f0ede8; display:flex; align-items:center; gap:4px;">
+                <div style="width:10px; height:10px; border-radius:2px; background:#fff1f2; flex-shrink:0;"></div>
+                <div style="flex:1; height:3px; background:#d1d5db; border-radius:2px;"></div>
+                <div style="font-size:6px; font-family:monospace; color:#9ca3af; letter-spacing:1px;">●●●●●</div>
+              </div>
+              <div style="padding:5px 6px; display:flex; align-items:center; gap:4px;">
+                <div style="width:10px; height:10px; border-radius:2px; background:#f5f4f0; flex-shrink:0;"></div>
+                <div style="flex:1; height:3px; background:#d1d5db; border-radius:2px;"></div>
+                <div style="font-size:6px; font-family:monospace; color:#9ca3af; letter-spacing:1px;">●●●●●</div>
+              </div>
+            </div>
+            <!-- Security banner -->
+            <div style="height:10px; background:#eff6ff; border-radius:4px; margin-top:4px; flex-shrink:0; border:1px solid #dbeafe;"></div>
+          </div>
+          <div class="board-badge">✓ 验收</div>
+        </div>
+        <div class="board-info">
+          <div class="board-name">🔒 密钥账号</div>
+          <div class="board-duty">敏感信息安全管理</div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- 2. Page Boundary Principles -->
+  <div class="section">
+    <div class="section-title">02 · 页面边界原则（每板块唯一职责）</div>
+    <div class="boundary-grid">
+      <div class="boundary-card">
+        <div class="boundary-name">⊞ 首页</div>
+        <div class="boundary-job">今天执行什么</div>
+        <div class="boundary-do">当前时间块高亮、今日习惯打卡、本周任务扫读、目标进度快览</div>
+        <div class="boundary-dont">不在这里创作内容或深度整理</div>
+      </div>
+      <div class="boundary-card">
+        <div class="boundary-name">✏️ 工作台</div>
+        <div class="boundary-job">自由整理与创作</div>
+        <div class="boundary-do">打开即写、Slash 块插入、页面列表管理、引用 Inbox 内容</div>
+        <div class="boundary-dont">不在这里收集原始素材或发布内容</div>
+      </div>
+      <div class="boundary-card">
+        <div class="boundary-name">📥 灵感收藏</div>
+        <div class="boundary-job">原始收集入口</div>
+        <div class="boundary-do">统一存入文章/视频/图片/链接/灵感；初步整理；转出到其他板块</div>
+        <div class="boundary-dont">不在这里深度创作或发布</div>
+      </div>
+      <div class="boundary-card">
+        <div class="boundary-name">📊 自媒体</div>
+        <div class="boundary-job">内容生产与复盘</div>
+        <div class="boundary-do">选题管理、制作进度、发布日历、平台数据、单条内容复盘</div>
+        <div class="boundary-dont">不在这里存储原始素材或管理密钥</div>
+      </div>
+      <div class="boundary-card">
+        <div class="boundary-name">🔒 密钥账号</div>
+        <div class="boundary-job">敏感信息管理</div>
+        <div class="boundary-do">API Key / 账号密码 / SSH Key；默认隐藏；搜索复制</div>
+        <div class="boundary-dont">不出现在任何其他板块界面上</div>
+      </div>
+    </div>
+    <!-- Information flow -->
+    <div style="margin-top:20px; padding:16px 20px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <div style="font-size:12px; font-weight:700; color:#6b7280; margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">信息流向（单向）</div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="padding:8px 16px; background:#edf7f1; border-radius:8px; font-size:13px; font-weight:600; color:#1A7A4A;">📥 灵感收藏</div>
+        <div style="color:#9ca3af; font-size:18px;">→</div>
+        <div style="padding:8px 16px; background:#edf7f1; border-radius:8px; font-size:13px; font-weight:600; color:#1A7A4A;">✏️ 工作台</div>
+        <div style="color:#9ca3af; font-size:18px;">→</div>
+        <div style="padding:8px 16px; background:#edf7f1; border-radius:8px; font-size:13px; font-weight:600; color:#1A7A4A;">☑️ 任务</div>
+        <div style="color:#9ca3af; font-size:18px;">→</div>
+        <div style="padding:8px 16px; background:#edf7f1; border-radius:8px; font-size:13px; font-weight:600; color:#1A7A4A;">⊞ 首页</div>
+        <div style="color:#c4b9af; font-size:13px; margin-left:8px; font-style:italic;">（执行）</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap;">
+        <div style="padding:8px 16px; background:#edf7f1; border-radius:8px; font-size:13px; font-weight:600; color:#1A7A4A;">📥 灵感收藏</div>
+        <div style="color:#9ca3af; font-size:18px;">→</div>
+        <div style="padding:8px 16px; background:#edf7f1; border-radius:8px; font-size:13px; font-weight:600; color:#1A7A4A;">📊 自媒体</div>
+        <div style="color:#c4b9af; font-size:13px; margin-left:8px; font-style:italic;">（转选题）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Design Tokens -->
+  <div class="section">
+    <div class="section-title">03 · 设计 Token</div>
+
+    <div class="section-subtitle">颜色系统</div>
+    <div class="token-grid" style="margin-bottom:28px;">
+      <div class="token-card">
+        <div class="token-swatch" style="background:#F7F5F0; border:1px solid #e8e5e0;"></div>
+        <div class="token-name">背景 · Background</div>
+        <div class="token-hex">#F7F5F0</div>
+        <div class="token-usage">全局页面背景，米白纸感</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#1A7A4A;"></div>
+        <div class="token-name">主色 · Primary</div>
+        <div class="token-hex">#1A7A4A</div>
+        <div class="token-usage">当前高亮、CTA 按钮、FocusCard、进度条</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#D4820A;"></div>
+        <div class="token-name">强调色 · Amber</div>
+        <div class="token-hex">#D4820A</div>
+        <div class="token-usage">待处理状态、Slash 轻量版标签、计划发布</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#FFFFFF; border:1px solid #f0ede8;"></div>
+        <div class="token-name">卡片 · Card</div>
+        <div class="token-hex">#FFFFFF</div>
+        <div class="token-usage">所有内容卡片背景</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#edf7f1;"></div>
+        <div class="token-name">主色淡 · Primary Tint</div>
+        <div class="token-hex">#EDF7F1</div>
+        <div class="token-usage">已完成 badge、轻 hover 态、选中 pill</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#3B82F6;"></div>
+        <div class="token-name">辅助蓝 · Blue</div>
+        <div class="token-hex">#3B82F6</div>
+        <div class="token-usage">文章类卡片、进行中 badge、链接</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#F43F5E;"></div>
+        <div class="token-name">玫瑰 · Rose</div>
+        <div class="token-hex">#F43F5E</div>
+        <div class="token-usage">高优先级任务、数据下降指标</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch" style="background:#f0ede8;"></div>
+        <div class="token-name">描边 · Border</div>
+        <div class="token-hex">#F0EDE8</div>
+        <div class="token-usage">分隔线、极少用的卡片描边</div>
+      </div>
+    </div>
+
+    <div class="section-subtitle">字型规格</div>
+    <div class="card" style="padding:0 20px; margin-bottom:28px;">
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:28px; font-weight:800; color:#1a1a1a;">页面大标题</div>
+        <div class="typo-spec">28px / 800 / -0.5px</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:18px; font-weight:700; color:#1a1a1a;">区块标题</div>
+        <div class="typo-spec">18px / 700</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:15px; font-weight:700; color:#1a1a1a;">Sidebar Logo / 导航一级</div>
+        <div class="typo-spec">15px / 700</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:14px; font-weight:600; color:#1a1a1a;">卡片标题 / 重要项</div>
+        <div class="typo-spec">14px / 600</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:13px; color:#374151; line-height:1.7;">正文 · 卡片摘要 · 操作按钮文字，行高 1.7，舒适阅读</div>
+        <div class="typo-spec">13px / 400–500 / lh 1.7</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:12px; color:#6b7280;">次级信息 · 来源 · 时间</div>
+        <div class="typo-spec">12px / 400 / #6b7280</div>
+      </div>
+      <div class="typo-row">
+        <div class="typo-sample" style="font-size:11px; font-weight:600; color:#9ca3af; letter-spacing:0.8px; text-transform:uppercase;">SECTION LABEL · UPPERCASE</div>
+        <div class="typo-spec">11px / 600 / +0.8px / upper</div>
+      </div>
+    </div>
+
+    <div class="section-subtitle">圆角 & 间距</div>
+    <div class="card" style="padding:20px; margin-bottom:0;">
+      <div style="font-size:12px; font-weight:600; color:#9ca3af; margin-bottom:14px;">圆角规格</div>
+      <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end; margin-bottom:24px;">
+        <div style="text-align:center;">
+          <div style="width:24px; height:24px; background:#1A7A4A; border-radius:6px; margin:0 auto 6px;"></div>
+          <div style="font-size:10px; font-family:monospace; color:#9ca3af;">6px<br>badge</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:36px; height:36px; background:#1A7A4A; border-radius:8px; margin:0 auto 6px;"></div>
+          <div style="font-size:10px; font-family:monospace; color:#9ca3af;">8px<br>nav item</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:52px; height:36px; background:#1A7A4A; border-radius:9px; margin:0 auto 6px;"></div>
+          <div style="font-size:10px; font-family:monospace; color:#9ca3af;">9px<br>button / input</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:60px; height:40px; background:#edf7f1; border-radius:12px; margin:0 auto 6px;"></div>
+          <div style="font-size:10px; font-family:monospace; color:#9ca3af;">12px<br>small card</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:72px; height:48px; background:#edf7f1; border-radius:14px; margin:0 auto 6px;"></div>
+          <div style="font-size:10px; font-family:monospace; color:#9ca3af;">14px<br>main card</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:88px; height:56px; background:#F7F5F0; border:1px solid #e5e2dc; border-radius:20px; margin:0 auto 6px;"></div>
+          <div style="font-size:10px; font-family:monospace; color:#9ca3af;">20px<br>pill / avatar</div>
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:600; color:#9ca3af; margin-bottom:10px;">阴影层级（仅用两级）</div>
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div style="padding:14px 20px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); font-size:12px; color:#6b7280;">
+          Level 1 · 卡片默认<br><span style="font-family:monospace; font-size:10px; color:#9ca3af;">0 1px 3px rgba(0,0,0,0.05)</span>
+        </div>
+        <div style="padding:14px 20px; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.1); font-size:12px; color:#6b7280;">
+          Level 2 · Hover / 浮层<br><span style="font-family:monospace; font-size:10px; color:#9ca3af;">0 4px 16px rgba(0,0,0,0.10)</span>
+        </div>
+        <div style="padding:14px 20px; background:#fff; border-radius:12px; box-shadow:0 0 0 3px rgba(26,122,74,0.10); border:1px solid #1A7A4A; font-size:12px; color:#6b7280;">
+          Focus ring · 输入框<br><span style="font-family:monospace; font-size:10px; color:#9ca3af;">0 0 0 3px rgba(26,122,74,0.10)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Component Library -->
+  <div class="section">
+    <div class="section-title">04 · 组件一览</div>
+    <div class="card" style="padding:24px;">
+      <div style="font-size:12px; font-weight:600; color:#9ca3af; margin-bottom:10px;">按钮</div>
+      <div class="component-row">
+        <div class="btn-primary">主按钮</div>
+        <div class="btn-secondary">次按钮</div>
+        <div class="btn-ghost">文字按钮</div>
+        <div class="btn-danger">危险操作</div>
+        <div class="btn-primary btn-sm">小主按钮</div>
+        <div class="btn-ghost btn-sm">小幽灵</div>
+      </div>
+      <div style="font-size:12px; font-weight:600; color:#9ca3af; margin-bottom:10px; margin-top:16px;">Pills & 筛选</div>
+      <div class="component-row">
+        <div class="pill-active">全部</div>
+        <div class="pill-inactive">文章 8</div>
+        <div class="pill-inactive">视频 5</div>
+        <div class="pill-inactive">链接 3</div>
+      </div>
+      <div style="font-size:12px; font-weight:600; color:#9ca3af; margin-bottom:10px; margin-top:16px;">状态 Badge</div>
+      <div class="component-row">
+        <span class="badge-green">已完成</span>
+        <span class="badge-amber">待制作</span>
+        <span class="badge-blue">进行中</span>
+        <span class="badge-red">高优先级</span>
+        <span class="badge-gray">已归档</span>
+      </div>
+      <div style="font-size:12px; font-weight:600; color:#9ca3af; margin-bottom:10px; margin-top:16px;">输入框</div>
+      <div class="component-row">
+        <input class="input-demo" placeholder="普通输入框" />
+        <input class="input-demo input-focus" value="聚焦态 — 绿色描边" />
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Consistency Checklist -->
+  <div class="section">
+    <div class="section-title">05 · 一致性检查清单</div>
+    <div class="card" style="overflow:hidden;">
+      <table class="check-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th>检查项</th>
+            <th>首页</th>
+            <th>工作台</th>
+            <th>灵感收藏</th>
+            <th>自媒体</th>
+            <th>密钥账号</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;">Sidebar 命名</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">首页/工作台/灵感收藏/自媒体/密钥账号 已统一</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">背景色 #F7F5F0</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">全部一致</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">主色 #1A7A4A</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">Nav 高亮、CTA、进度条全部一致</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">卡片圆角 14px</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">主卡片 14px，小卡片 12px</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">卡片阴影（无重边框）</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">box-shadow: 0 1px 3px rgba(0,0,0,0.05)</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Section Label 样式</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af;">—</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">工作台无需区块标题，文档编辑器风格</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Mobile 单列响应式</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon warn">△</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon warn">△</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">工作台/自媒体 preview 已折叠方向正确，实现时需细化</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">空状态引导</td>
+            <td><span class="check-icon note">○</span></td>
+            <td><span class="check-icon note">○</span></td>
+            <td><span class="check-icon note">○</span></td>
+            <td><span class="check-icon note">○</span></td>
+            <td><span class="check-icon note">○</span></td>
+            <td style="color:#9ca3af; font-size:12px;">Preview 均为有数据态；实现时需补零数据引导</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">字体 system-ui</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">全部使用 -apple-system / system-ui</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Sidebar 宽度 180px</td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td><span class="check-icon pass">✓</span></td>
+            <td style="color:#9ca3af; font-size:12px;">全部一致，flex-shrink:0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding:10px 16px; background:#fafaf9; border-top:1px solid #f0ede8; display:flex; gap:16px; font-size:11px; color:#9ca3af;">
+        <span><span style="color:#1A7A4A;">✓</span> 通过</span>
+        <span><span style="color:#D4820A;">△</span> 方向正确，实现时需细化</span>
+        <span><span style="color:#3b82f6;">○</span> Preview 未覆盖，实现时补充</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. IA Migration -->
+  <div class="section">
+    <div class="section-title">06 · 旧 IA 迁移决策</div>
+    <div class="section-desc">当前 app/ 里有若干旧路由，需要在 Implementation Plan 里明确去向。</div>
+    <div class="migration-grid">
+      <!-- Old -->
+      <div class="migration-col">
+        <div class="ia-label">当前路由 / 功能</div>
+        <div class="ia-item ia-old">📝 /notes（笔记列表）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-old">📊 /analytics（数据摘要）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-old">🔑 /api-keys（密钥管理）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-old">🏠 /dashboard-demo（演示首页）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-old">✏️ /workspace（当前 Section 卡片）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-old">⊞ / (_index.tsx，当前首页)</div>
+      </div>
+      <!-- Arrow -->
+      <div class="migration-arrow">→</div>
+      <!-- New -->
+      <div class="migration-col">
+        <div class="ia-label">迁移方向</div>
+        <div class="ia-item ia-merge">→ 拆分：Markdown 笔记迁入 <strong>工作台</strong>（页面/文档概念）；灵感类内容迁入 <strong>灵感收藏</strong></div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-merge">→ 聚合到 <strong>首页</strong> 数据摘要卡 + <strong>自媒体</strong> 平台数据；独立 /analytics 路由废弃</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-new">→ 直接升级为 <strong>密钥账号</strong>（/ vault 或保留 /api-keys 路由重定向）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-merge">→ 与 <strong>正式首页</strong> 合并；验收通过后 /dashboard-demo 保留为回退快照</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-new">→ 重构为 <strong>工作台</strong>（Free Studio，Slash 输入，删除 Section 卡片逻辑）</div>
+        <div style="height:6px;"></div>
+        <div class="ia-item ia-new">→ 替换为 <strong>正式首页</strong>（基于 dashboard-demo 结构升级，视觉对齐 Preview 1）</div>
+      </div>
+    </div>
+    <!-- Decision note — CONFIRMED 2026-06-12 -->
+    <div style="margin-top:16px; padding:14px 18px; background:#edf7f1; border-radius:10px; border-left:3px solid #1A7A4A;">
+      <div style="font-size:13px; font-weight:700; color:#1A7A4A; margin-bottom:4px;">✓ 已决策：Sidebar「笔记」合并到工作台（2026-06-12）</div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.6;">
+        笔记属于 Workspace 职责（页面/文档/自由整理），不再作为一级导航。顶级导航最终确定为 6 项：<strong>首页 / 工作台 / 任务 / 灵感收藏 / 自媒体 / 密钥账号</strong>。<br>
+        旧 /notes 路由本阶段保留兼容，后续迁移到工作台页面列表或做 301 重定向，不在 v1 实现阶段直接删除。
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Risk & Decision Log -->
+  <div class="section">
+    <div class="section-title">07 · 风险与决策记录</div>
+    <div class="risk-card risk-security">
+      <div class="risk-title" style="color:#1e40af;">🛡 安全风险：Vault「导出至本地」</div>
+      <div class="risk-body">实现"导出至本地"功能时，<strong>必须二次确认弹窗</strong>（明确说明导出内容范围 + 明文警告）。建议提供加密导出选项（密码加密 JSON），禁止静默导出明文文件。导出操作需要在操作日志里记录时间戳，便于审计。</div>
+    </div>
+    <div class="risk-card risk-ux">
+      <div class="risk-title" style="color:#92400e;">⚠️ UX 风险：Vault 显示态自动隐藏计时器</div>
+      <div class="risk-body">Preview 中提及"显示后 30 秒自动隐藏"。实现时需要在 UI 上显示倒计时（而非静默隐藏），给用户操作窗口，防止复制被截断。</div>
+    </div>
+    <div class="risk-card risk-arch">
+      <div class="risk-title" style="color:#1A7A4A;">✓ 架构决策：工作台不再使用 Section 卡片</div>
+      <div class="risk-body">v1 工作台采用 Free Studio 方向（打开即写 + Slash 插入块），现有 /workspace 的 Section 卡片 UI 将在迁移后废弃。实现时可先并行保留旧路由，验收 Free Studio 后再删除。</div>
+    </div>
+    <div class="risk-card risk-arch">
+      <div class="risk-title" style="color:#1A7A4A;">✓ 架构决策：信息流向单向，Inbox 是唯一收集入口</div>
+      <div class="risk-body">灵感收藏是所有原始素材的唯一入口。工作台、自媒体、首页均不直接收集原始内容，只消费/引用已整理内容。实现时注意不要在这些板块里加"快速记录"功能，防止边界扩散。</div>
+    </div>
+    <div class="risk-card risk-ux">
+      <div class="risk-title" style="color:#92400e;">⚠️ 移动端：工作台 / 自媒体需要专项设计</div>
+      <div class="risk-body">这两个板块在 Preview 里只给出了折叠方向，移动端具体交互（工作台 Slash 键盘适配、自媒体左右栏切换 Tab）需要在 Implementation Plan 里单独拆任务。</div>
+    </div>
+  </div>
+
+  <!-- 8. Next Steps -->
+  <div class="section">
+    <div class="section-title">08 · 下一步</div>
+    <div class="next-grid">
+      <div class="next-card">
+        <div class="next-num">01</div>
+        <div class="next-title">确认「笔记」Sidebar 决策</div>
+        <div class="next-desc">明确笔记是否合并进工作台，还是保留独立入口。这影响 Sidebar 最终 5 项还是 6 项，以及路由结构。</div>
+        <span class="next-tag tag-decision">需决策</span>
+      </div>
+      <div class="next-card">
+        <div class="next-num">02</div>
+        <div class="next-title">首页升级 Implementation Plan</div>
+        <div class="next-desc">基于 Preview 1 视觉稿，把 dashboard-demo 的布局结构正式迁移到 _index.tsx，视觉对齐米白纸感系统。</div>
+        <span class="next-tag tag-now">可立即开始</span>
+      </div>
+      <div class="next-card">
+        <div class="next-num">03</div>
+        <div class="next-title">工作台 Free Studio 实现</div>
+        <div class="next-desc">删除 Section 卡片逻辑，实现打开即写 + Slash 菜单插入块（Todo / 计划 / 内容创意 / 标题），保留页面列表。</div>
+        <span class="next-tag tag-now">可立即开始</span>
+      </div>
+      <div class="next-card">
+        <div class="next-num">04</div>
+        <div class="next-title">灵感收藏 Inbox 实现</div>
+        <div class="next-desc">新建 /inbox 路由 + Schema（item type / source / tags / status），支持文章/视频/图片/链接/灵感五类收藏。</div>
+        <span class="next-tag tag-now">可立即开始</span>
+      </div>
+      <div class="next-card">
+        <div class="next-num">05</div>
+        <div class="next-title">自媒体 Creator 实现</div>
+        <div class="next-desc">选题库 + 制作流水线 + 内容日历 + 平台数据接入（初期可用静态 mock 数据）。</div>
+        <span class="next-tag tag-later">后续</span>
+      </div>
+      <div class="next-card">
+        <div class="next-num">06</div>
+        <div class="next-title">Vault 升级安全机制</div>
+        <div class="next-desc">在现有 /api-keys 基础上升级：加显示/隐藏逻辑、搜索、分类、安全提示横幅、导出二次确认流程。</div>
+        <span class="next-tag tag-later">后续</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

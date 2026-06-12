@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>首页 / 控制面板 — UI Preview v1</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#f0faf4', 100: '#d9f2e4', 200: '#b3e5c9', 300: '#7dd0a8',
+              400: '#4ab882', 500: '#28a060', 600: '#1A7A4A', 700: '#166040',
+              800: '#124f34', 900: '#0d3d27',
+            },
+            amber: {
+              50: '#fffbf0', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d',
+              400: '#fbbf24', 500: '#f59e0b', 600: '#D4820A', 700: '#b45309',
+            },
+            paper: '#F7F5F0',
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'PingFang SC', 'Hiragino Sans GB', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { background-color: #F7F5F0; }
+    .card { background: #fff; border-radius: 16px; }
+    .card-soft { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+    .section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #9CA3AF; }
+    .focus-block-active {
+      background: linear-gradient(135deg, #1A7A4A 0%, #1f9457 100%);
+      border-radius: 16px;
+    }
+    .progress-bar { height: 6px; background: #F3F4F6; border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #1A7A4A; border-radius: 99px; transition: width 0.3s ease; }
+    .habit-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; transition: background 0.15s; }
+    .habit-row:hover { background: #F9FAF9; }
+    .habit-check-done {
+      width: 22px; height: 22px; border-radius: 50%; border: 2px solid #1A7A4A;
+      background: #1A7A4A; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .habit-check-todo {
+      width: 22px; height: 22px; border-radius: 50%; border: 2px solid #D1D5DB; flex-shrink: 0;
+    }
+    .task-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid #F9FAFB; }
+    .task-row:last-child { border-bottom: none; }
+    .task-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #D1D5DB; flex-shrink: 0; margin-top: 2px; }
+    .task-check-done { background: #d9f2e4; border-color: #1A7A4A; display: flex; align-items: center; justify-content: center; }
+    .badge-urgent { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+    .badge-high { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #FFF7ED; color: #EA580C; border: 1px solid #FED7AA; }
+    .badge-medium { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+    .quick-btn {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      background: #fff; border: 1px solid #E5E7EB; border-radius: 10px;
+      font-size: 13px; font-weight: 500; color: #374151; cursor: pointer;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .quick-btn:hover { background: #F9FAF9; border-color: #D1D5DB; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+    .quick-btn-primary {
+      background: #1A7A4A; border-color: #1A7A4A; color: #fff;
+    }
+    .quick-btn-primary:hover { background: #166040; }
+    .rhythm-block { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; }
+    .rhythm-block-now { background: #F0FAF4; border: 1px solid #b3e5c9; }
+    .rhythm-block-done { opacity: 0.5; }
+    .rhythm-block-past { background: #FFFBF0; }
+    .rhythm-block-future { background: transparent; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-focus { background: #1A7A4A; }
+    .dot-break { background: #38BDF8; }
+    .dot-meal { background: #FBBF24; }
+    .dot-now { box-shadow: 0 0 0 3px rgba(26,122,74,0.25); }
+    .stat-card { background: #fff; border-radius: 14px; padding: 14px 16px; }
+    .nav-item { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; color: #6B7280; cursor: pointer; position: relative; }
+    .nav-item:hover { background: #F9FAFB; color: #374151; }
+    .nav-item-active { background: #F0FAF4; color: #1A7A4A; font-weight: 600; }
+    .nav-item-active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #1A7A4A; border-radius: 0 3px 3px 0; }
+    .analytics-num { font-size: 22px; font-weight: 700; color: #111827; line-height: 1.2; }
+    .analytics-label { font-size: 11px; color: #9CA3AF; margin-top: 2px; }
+    .pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Mobile override */
+    @media (max-width: 640px) {
+      .sidebar-desktop { display: none !important; }
+      .mobile-header { display: flex !important; }
+      .main-two-col { flex-direction: column !important; }
+      .homepage-sidebar { width: 100% !important; }
+      .bottom-grid { grid-template-columns: 1fr !important; }
+    }
+    @media (min-width: 641px) {
+      .mobile-header { display: none !important; }
+    }
+  </style>
+</head>
+<body class="font-sans min-h-screen" style="background:#F7F5F0">
+
+<!-- Mobile header (hidden on desktop) -->
+<div class="mobile-header px-4 py-3 bg-white border-b border-gray-100 items-center justify-between" style="display:none">
+  <div class="flex items-center gap-2">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#1A7A4A">
+      <span class="text-white font-bold text-xs">S</span>
+    </div>
+    <span class="font-bold text-gray-900 text-sm">我的空间</span>
+  </div>
+  <button class="p-2 text-gray-500">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</div>
+
+<!-- App shell -->
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar-desktop w-[180px] bg-white border-r border-gray-100 flex flex-col shrink-0 min-h-screen" style="display:flex">
+    <!-- Logo -->
+    <div class="px-4 py-5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-[10px] flex items-center justify-center" style="background:#1A7A4A">
+          <span class="text-white font-bold text-sm">S</span>
+        </div>
+        <div>
+          <div class="text-[15px] font-bold text-gray-900 leading-tight">我的空间</div>
+          <div class="text-[10px] font-medium leading-tight" style="color:#9CA3AF">个人效率助手</div>
+        </div>
+      </div>
+    </div>
+    <!-- Nav -->
+    <nav class="flex-1 px-2.5 space-y-0.5">
+      <div class="nav-item nav-item-active">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        仪表盘
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        工作台
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+        任务
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="4" rx="1"/><rect x="3" y="12" width="4" height="4" rx="1"/><rect x="3" y="19" width="4" height="4" rx="1" fill="currentColor"/><line x1="10" y1="7" x2="21" y2="7"/><line x1="10" y1="14" x2="21" y2="14"/><line x1="10" y1="21" x2="21" y2="21"/></svg>
+        习惯
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+        日程
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        日历
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        笔记
+      </div>
+      <div class="nav-item">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+        目标
+      </div>
+      <!-- Tools section -->
+      <div class="pt-3 mt-3 mx-1 border-t border-gray-100">
+        <div class="px-3 mb-1" style="font-size:9px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.15em">工具</div>
+        <div class="nav-item">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          数据分析
+        </div>
+        <div class="nav-item">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="11" r="3"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 16.5c-3.6 0-6.5-2.9-6.5-6.5S8.4 5.5 12 5.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5z"/></svg>
+          API 密钥
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 min-w-0 px-5 py-6 sm:px-7 sm:py-7">
+
+    <!-- Status Bar -->
+    <div class="card-soft px-4 py-2.5 flex items-center gap-3 flex-wrap mb-4">
+      <span class="text-[13px] font-semibold text-gray-700">周四 · 6月12日</span>
+      <span class="text-gray-200">·</span>
+      <span class="text-[12px] font-medium" style="color:#D4820A">今日还剩 3 个时间块</span>
+      <span class="text-gray-200">·</span>
+      <span class="text-[12px] text-gray-400">已完成 3 / 6</span>
+      <div class="flex-1"></div>
+      <a href="/api-keys" class="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="11" r="3"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 16.5c-3.6 0-6.5-2.9-6.5-6.5S8.4 5.5 12 5.5s6.5 2.9 6.5 6.5-2.9 6.5-6.5 6.5z"/></svg>
+        API 密钥
+      </a>
+    </div>
+
+    <!-- Quick Actions Bar -->
+    <div class="flex items-center gap-2 flex-wrap mb-5">
+      <button class="quick-btn quick-btn-primary">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建任务
+      </button>
+      <button class="quick-btn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        新建笔记
+      </button>
+      <button class="quick-btn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        进入工作台
+      </button>
+      <button class="quick-btn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+        查看日程
+      </button>
+    </div>
+
+    <!-- Two-column layout -->
+    <div class="main-two-col flex gap-5 mb-5">
+
+      <!-- Left: FocusCard + RhythmBar -->
+      <div class="flex-1 min-w-0 flex flex-col gap-4">
+
+        <!-- FocusCard: active state -->
+        <div class="focus-block-active p-5 text-white">
+          <div class="flex items-center justify-between mb-1">
+            <span class="section-label" style="color:rgba(255,255,255,0.6)">当下焦点</span>
+            <span class="flex items-center gap-1.5 text-[10px] font-semibold bg-white/20 px-2.5 py-1 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-300 pulse" style="display:inline-block"></span>
+              进行中
+            </span>
+          </div>
+          <div class="text-[11px] mt-3 mb-1" style="color:rgba(255,255,255,0.55)">09:00 – 11:00 · 深度专注</div>
+          <div class="text-[19px] font-bold leading-tight">产品 UI Preview 设计</div>
+          <div class="flex items-center gap-2 mt-3">
+            <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white text-gray-800 text-[12px] font-semibold rounded-full hover:bg-gray-50 transition-colors">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              标记完成
+            </button>
+          </div>
+          <!-- Focus timer -->
+          <div class="flex items-center gap-2 mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.2)">
+            <svg width="13" height="13" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+            <span class="font-mono text-[13px] font-semibold" style="color:rgba(255,255,255,0.9); width:48px">47:23</span>
+            <button class="px-3 py-1 text-[11px] font-semibold rounded-full" style="background:rgba(255,255,255,0.2);color:white">暂停</button>
+            <button class="text-[11px]" style="color:rgba(255,255,255,0.5)">重置</button>
+          </div>
+          <div class="text-[11px] mt-3" style="color:rgba(255,255,255,0.45)">下一个 → 11:00 休息 15 分钟</div>
+        </div>
+
+        <!-- Rhythm Bar -->
+        <div class="card-soft p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="section-label">今日节奏</span>
+            <a href="/schedule" class="text-[11px] font-medium" style="color:#1A7A4A">查看完整 →</a>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <div class="rhythm-block rhythm-block-done">
+              <span class="dot dot-focus" style="opacity:0.4"></span>
+              <span class="font-mono text-[11px] text-gray-400" style="width:84px;flex-shrink:0">07:00–08:00</span>
+              <span class="text-[13px] line-through text-gray-400 flex-1">晨间例程</span>
+              <svg width="13" height="13" fill="none" stroke="#1A7A4A" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="rhythm-block rhythm-block-done">
+              <span class="dot dot-focus" style="opacity:0.4"></span>
+              <span class="font-mono text-[11px] text-gray-400" style="width:84px;flex-shrink:0">08:00–09:00</span>
+              <span class="text-[13px] line-through text-gray-400 flex-1">邮件 & 消息回复</span>
+              <svg width="13" height="13" fill="none" stroke="#1A7A4A" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="rhythm-block rhythm-block-now">
+              <span class="dot dot-focus dot-now"></span>
+              <span class="font-mono text-[11px]" style="color:#1A7A4A;width:84px;flex-shrink:0">09:00–11:00</span>
+              <span class="text-[13px] font-semibold flex-1" style="color:#1A7A4A">产品 UI Preview 设计</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="background:#d9f2e4;color:#1A7A4A">进行中</span>
+            </div>
+            <div class="rhythm-block rhythm-block-future">
+              <span class="dot dot-break"></span>
+              <span class="font-mono text-[11px] text-gray-400" style="width:84px;flex-shrink:0">11:00–11:15</span>
+              <span class="text-[13px] text-gray-500 flex-1">休息 15 分钟</span>
+            </div>
+            <div class="rhythm-block rhythm-block-future">
+              <span class="dot dot-focus"></span>
+              <span class="font-mono text-[11px] text-gray-400" style="width:84px;flex-shrink:0">11:15–13:00</span>
+              <span class="text-[13px] text-gray-500 flex-1">代码实现 & 调试</span>
+            </div>
+            <div class="rhythm-block rhythm-block-future">
+              <span class="dot dot-meal"></span>
+              <span class="font-mono text-[11px] text-gray-400" style="width:84px;flex-shrink:0">13:00–14:00</span>
+              <span class="text-[13px] text-gray-500 flex-1">午餐 & 休息</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right: HabitsCard (homepage-sidebar) -->
+      <div class="homepage-sidebar card-soft p-5" style="width:288px;flex-shrink:0">
+        <div class="flex items-center justify-between mb-3">
+          <span class="section-label">今日习惯</span>
+          <a href="/habits" class="text-[11px] font-medium" style="color:#1A7A4A">管理 →</a>
+        </div>
+        <div class="flex flex-col">
+          <!-- done -->
+          <div class="habit-row">
+            <div class="habit-check-done">
+              <svg width="10" height="10" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span class="text-base">🧘</span>
+            <span class="text-[13px] line-through text-gray-400 flex-1">晨间冥想</span>
+            <span class="flex items-center gap-0.5 text-[11px] font-semibold" style="color:#D4820A">
+              <svg width="11" height="11" fill="#D4820A" viewBox="0 0 24 24"><path d="M12 2c0 6-8 10-8 14a8 8 0 0016 0c0-4-8-8-8-14z"/></svg>
+              7
+            </span>
+          </div>
+          <!-- done -->
+          <div class="habit-row">
+            <div class="habit-check-done">
+              <svg width="10" height="10" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span class="text-base">📖</span>
+            <span class="text-[13px] line-through text-gray-400 flex-1">阅读 30 分钟</span>
+            <span class="flex items-center gap-0.5 text-[11px] font-semibold" style="color:#D4820A">
+              <svg width="11" height="11" fill="#D4820A" viewBox="0 0 24 24"><path d="M12 2c0 6-8 10-8 14a8 8 0 0016 0c0-4-8-8-8-14z"/></svg>
+              12
+            </span>
+          </div>
+          <!-- todo -->
+          <div class="habit-row">
+            <div class="habit-check-todo"></div>
+            <span class="text-base">🏃</span>
+            <span class="text-[13px] font-medium text-gray-700 flex-1">跑步 / 运动</span>
+          </div>
+          <!-- todo -->
+          <div class="habit-row">
+            <div class="habit-check-todo"></div>
+            <span class="text-base">✍️</span>
+            <span class="text-[13px] font-medium text-gray-700 flex-1">写作 15 分钟</span>
+          </div>
+          <!-- todo -->
+          <div class="habit-row">
+            <div class="habit-check-todo"></div>
+            <span class="text-base">💧</span>
+            <span class="text-[13px] font-medium text-gray-700 flex-1">喝足 8 杯水</span>
+            <span class="flex items-center gap-0.5 text-[11px] font-semibold" style="color:#D4820A">
+              <svg width="11" height="11" fill="#D4820A" viewBox="0 0 24 24"><path d="M12 2c0 6-8 10-8 14a8 8 0 0016 0c0-4-8-8-8-14z"/></svg>
+              3
+            </span>
+          </div>
+        </div>
+        <div class="text-right text-[11px] mt-3" style="color:#9CA3AF">2 / 5 已完成</div>
+        <!-- Mini progress -->
+        <div class="progress-bar mt-2">
+          <div class="progress-fill" style="width:40%"></div>
+        </div>
+      </div>
+
+    </div><!-- end two-col -->
+
+    <!-- Bottom grid: 3 cards -->
+    <div class="bottom-grid grid grid-cols-3 gap-4">
+
+      <!-- Week Tasks -->
+      <div class="card-soft p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="section-label">本周任务</span>
+          <a href="/tasks" class="text-[11px] font-medium" style="color:#1A7A4A">全部 →</a>
+        </div>
+        <!-- Group: 逾期/今日 -->
+        <div class="mb-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider mb-1.5" style="color:#DC2626;letter-spacing:0.1em">逾期 / 今日</div>
+          <div class="task-row">
+            <div class="task-check task-check-done">
+              <svg width="9" height="9" fill="none" stroke="#1A7A4A" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span class="text-[13px] line-through text-gray-400 flex-1">完成首页 UI 方案初稿</span>
+            <span class="badge-high">高</span>
+          </div>
+          <div class="task-row">
+            <div class="task-check"></div>
+            <span class="text-[13px] font-medium text-gray-700 flex-1">产品 spec 文档验收</span>
+            <span class="badge-urgent">紧急</span>
+          </div>
+        </div>
+        <!-- Group: 本周其余 -->
+        <div class="mb-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider mb-1.5" style="color:#9CA3AF;letter-spacing:0.1em">本周其余</div>
+          <div class="task-row">
+            <div class="task-check"></div>
+            <span class="text-[13px] font-medium text-gray-700 flex-1">Workspace v0.2 原型制作</span>
+            <span class="badge-high">高</span>
+          </div>
+          <div class="task-row">
+            <div class="task-check"></div>
+            <span class="text-[13px] font-medium text-gray-700 flex-1">Inbox 板块设计方案</span>
+            <span class="badge-medium">中</span>
+          </div>
+          <a href="/tasks" class="text-[11px] mt-1.5 inline-block" style="color:#9CA3AF">还有 3 个 →</a>
+        </div>
+      </div>
+
+      <!-- Goals Progress -->
+      <div class="card-soft p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="section-label">目标进度</span>
+          <a href="/goals" class="text-[11px] font-medium" style="color:#1A7A4A">全部 →</a>
+        </div>
+        <div class="flex flex-col gap-4">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[13px] font-medium text-gray-700 flex-1 pr-2 truncate">Product UI System v1</span>
+              <span class="text-[11px] font-semibold text-gray-500">35%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:35%"></div>
+            </div>
+            <div class="text-[10px] mt-1" style="color:#9CA3AF">5 / 14 个任务已完成</div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[13px] font-medium text-gray-700 flex-1 pr-2 truncate">坚持每日写作习惯</span>
+              <span class="text-[11px] font-semibold text-gray-500">80%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:80%"></div>
+            </div>
+            <div class="text-[10px] mt-1" style="color:#9CA3AF">连续 12 天 · 本周 5/7</div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[13px] font-medium text-gray-700 flex-1 pr-2 truncate">小红书粉丝破 1000</span>
+              <span class="text-[11px] font-semibold text-gray-500">62%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:62%"></div>
+            </div>
+            <div class="text-[10px] mt-1" style="color:#9CA3AF">620 / 1000 · 本月 +87</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics / Data summary -->
+      <div class="card-soft p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="section-label">数据摘要</span>
+          <a href="/analytics" class="text-[11px] font-medium" style="color:#1A7A4A">详情 →</a>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="stat-card" style="background:#F7F5F0">
+            <div class="analytics-num">12</div>
+            <div class="analytics-label">本周完成任务</div>
+          </div>
+          <div class="stat-card" style="background:#F7F5F0">
+            <div class="analytics-num">4</div>
+            <div class="analytics-label">今日新增笔记</div>
+          </div>
+          <div class="stat-card" style="background:#F7F5F0">
+            <div class="analytics-num">🔥 12</div>
+            <div class="analytics-label">最长连续习惯</div>
+          </div>
+          <div class="stat-card" style="background:#F7F5F0">
+            <div class="analytics-num">620</div>
+            <div class="analytics-label">小红书粉丝</div>
+          </div>
+        </div>
+        <!-- Mini bar chart hint -->
+        <div class="mt-3 flex items-end gap-1" style="height:32px">
+          <div class="flex-1 rounded-sm" style="height:40%;background:#d9f2e4"></div>
+          <div class="flex-1 rounded-sm" style="height:60%;background:#d9f2e4"></div>
+          <div class="flex-1 rounded-sm" style="height:55%;background:#d9f2e4"></div>
+          <div class="flex-1 rounded-sm" style="height:80%;background:#d9f2e4"></div>
+          <div class="flex-1 rounded-sm" style="height:45%;background:#d9f2e4"></div>
+          <div class="flex-1 rounded-sm" style="height:70%;background:#d9f2e4"></div>
+          <div class="flex-1 rounded-sm" style="height:100%;background:#1A7A4A"></div>
+        </div>
+        <div class="text-[10px] mt-1" style="color:#9CA3AF">最近 7 天完成任务趋势</div>
+      </div>
+
+    </div><!-- end bottom grid -->
+
+  </main>
+</div>
+
+<!-- Preview meta bar -->
+<div style="position:fixed;bottom:0;left:0;right:0;background:#111827;color:#9CA3AF;font-size:11px;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;z-index:999">
+  <span>🎨 UI Preview — 首页 / 控制面板 · v1 · 2026-06-12</span>
+  <span style="color:#4B5563">不修改业务代码 · 视觉验收用</span>
+</div>
+
+</body>
+</html>
