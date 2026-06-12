@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "@remix-run/react";
+import { Link, useLocation } from "@remix-run/react";
 import {
   LayoutDashboard, LayoutGrid, ListTodo, CheckSquare, Calendar, FileText, Target, CalendarClock,
   Plus, CalendarDays, GitGraph, TrendingUp, Zap, KeyRound, Inbox, BarChart2,
@@ -25,23 +25,6 @@ const toolItems = [
 
 export default function Sidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const handleFocus = () => {
-    if (location.pathname !== "/") {
-      navigate("/");
-    }
-    // Scroll to focus timer after navigation
-    setTimeout(() => {
-      const timer = document.querySelector(".focus-timer-card");
-      timer?.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Trigger click on the start button if timer not running
-      const startBtn = timer?.querySelector("button") as HTMLButtonElement;
-      if (startBtn && startBtn.textContent?.includes("开始")) {
-        startBtn.click();
-      }
-    }, 300);
-  };
 
   const NavLink = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
     const isActive =
@@ -96,42 +79,6 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Promo card */}
-      <div className="p-2.5">
-        <div className="bg-primary-600 rounded-2xl p-3.5 relative overflow-hidden">
-          {/* Subtle texture */}
-          <div className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: `radial-gradient(circle at 20% 30%, white 1px, transparent 1px),
-                radial-gradient(circle at 80% 70%, white 1px, transparent 1px),
-                radial-gradient(circle at 40% 90%, white 0.5px, transparent 0.5px)`,
-              backgroundSize: "40px 40px, 60px 60px, 30px 30px",
-            }}
-          />
-          <div className="relative z-10">
-            <div className="w-7 h-7 rounded-[10px] bg-white/20 flex items-center justify-center mb-2.5">
-              <Zap size={13} className="text-white" />
-            </div>
-            <p className="text-xs font-semibold text-white leading-tight mb-1">今日专注模式</p>
-            <p className="text-[10px] text-white/60 leading-tight mb-3">深度工作，减少干扰</p>
-            <button onClick={handleFocus} className="w-full py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold transition-colors">
-              开始专注
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* New task button */}
-      <div className="px-2.5 pb-3">
-        <Link
-          to="/tasks/new"
-          className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[13px] font-semibold
-                     bg-primary-600 text-white hover:bg-primary-700 transition-all duration-200 hover:shadow-md"
-        >
-          <Plus size={15} />
-          新建任务
-        </Link>
-      </div>
     </aside>
   );
 }
