@@ -50,7 +50,7 @@ function snapToFive(min: number): number {
 const TIMELINE_START = 480;  // 08:00
 const TIMELINE_END = 1320;   // 22:00
 const TIMELINE_DURATION = TIMELINE_END - TIMELINE_START;
-const PX_PER_MIN = 1.5;
+const PX_PER_MIN = 2;
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -159,7 +159,8 @@ function BlockCard({
   date: string;
 }) {
   const fetcher = useFetcher();
-  const [expanded, setExpanded] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(block.title);
   const [editStart, setEditStart] = useState(block.startTime);
@@ -167,6 +168,7 @@ function BlockCard({
   const [editType, setEditType] = useState(block.blockType);
   const [editColor, setEditColor] = useState(block.color);
   const [editDesc, setEditDesc] = useState(block.description || "");
+  const blockRef = useRef<HTMLDivElement>(null);
 
   const origStartMin = timeToMin(block.startTime);
   const origEndMin = timeToMin(block.endTime);
@@ -195,15 +197,15 @@ function BlockCard({
   const handleMoveStart = (e: React.MouseEvent) => {
     if (editing) return;
     e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-    setExpanded(false);
     const startY = e.clientY;
     const origTopSnap = localTopRef.current;
     const duration = origEndMin - origStartMin;
+    let moved = false;
 
     const onMove = (ev: MouseEvent) => {
       const delta = ev.clientY - startY;
+      if (!moved && Math.abs(delta) < 4) return;
+      if (!moved) { moved = true; setIsDragging(true); setPopoverOpen(false); }
       const rawTop = origTopSnap + delta;
       const clampedTop = Math.max(0, Math.min(rawTop, (TIMELINE_DURATION - duration) * PX_PER_MIN));
       const snapped = Math.round(snapToFive(Math.round(clampedTop / PX_PER_MIN)) * PX_PER_MIN);
@@ -214,6 +216,7 @@ function BlockCard({
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      if (!moved) return;
       setIsDragging(false);
       const newStartMin = TIMELINE_START + snapToFive(Math.round(localTopRef.current / PX_PER_MIN));
       const newEndMin = newStartMin + duration;
@@ -286,125 +289,145 @@ function BlockCard({
 
   return (
     <div
+      ref={blockRef}
       className={cn(
-        "absolute left-0 right-0 mx-1 rounded-xl border-l-4 transition-shadow overflow-hidden",
+        "absolute left-0 right-0 mx-1 rounded-xl border-l-4 transition-shadow",
         isDragging || isResizing ? "shadow-xl z-30 opacity-90 cursor-grabbing" : "shadow-sm hover:shadow-md z-10",
         isActive && !isDragging && !isResizing ? "shadow-[0_4px_20px_rgba(26,122,74,0.25)] z-20" : "",
+        popoverOpen ? "z-40" : "",
         block.completed && "opacity-50"
       )}
       style={{
         top: `${localTop}px`,
         height: `${localHeight}px`,
-        backgroundColor: `${block.color}18`,
+        backgroundColor: `${block.color}DD`,
         borderLeftColor: block.color,
         userSelect: "none",
       }}
-      onClick={() => !editing && !isDragging && !isResizing && setExpanded(!expanded)}
+      onClick={(e) => {
+        if (isDragging || isResizing) return;
+        if (popoverOpen) { setPopoverOpen(false); return; }
+        const rect = blockRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const left = rect.right + 8;
+        const top = Math.min(rect.top, window.innerHeight - 320);
+        setPopoverPos({ top, left: left + 264 > window.innerWidth ? rect.left - 272 : left });
+        setPopoverOpen(true);
+      }}
     >
       {/* Drag handle area (header) */}
       <div
         className={cn(
-          "flex items-center gap-1.5 px-2 py-1 min-h-[28px]",
+          "px-2.5 py-1.5 min-h-[28px] flex flex-col justify-center",
           !editing && "cursor-grab active:cursor-grabbing"
         )}
         onMouseDown={handleMoveStart}
       >
-        {isActive && (
-          <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-        )}
-        <span
-          className={cn("text-[11px] font-semibold truncate flex-1", block.completed && "line-through")}
-          style={{ color: block.color }}
-        >
-          {minToTime(displayStartMin)}–{minToTime(displayEndMin)} {block.title}
-        </span>
-        {isActive && (
-          <span className="shrink-0 text-[9px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
-            进行中
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-medium text-white/70 shrink-0">
+            {minToTime(displayStartMin)}–{minToTime(displayEndMin)}
           </span>
+          {isActive && (
+            <span className="shrink-0 text-[9px] font-bold text-white bg-white/25 px-1.5 py-0.5 rounded-full">
+              进行中
+            </span>
+          )}
+        </div>
+        {localHeight >= 36 && (
+          <p className={cn("text-[12px] font-semibold text-white leading-tight truncate mt-0.5", block.completed && "line-through opacity-60")}>
+            {block.title}
+          </p>
         )}
       </div>
 
-      {/* Expanded panel */}
-      {expanded && localHeight >= 60 && (
-        <div className="px-2 pb-2" onClick={(e) => e.stopPropagation()}>
+      {/* Popover */}
+      {popoverOpen && (
+        <div
+          className="fixed z-[9999] w-64 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-[#E8ECEA] p-4"
+          style={{ top: popoverPos.top, left: popoverPos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close on outside click */}
+          <div className="fixed inset-0 z-[-1]" onClick={() => { setPopoverOpen(false); setEditing(false); }} />
+
           {!editing ? (
-            <div className="space-y-1.5">
-              {block.description && (
-                <p className="text-[11px] text-gray-500">{block.description}</p>
-              )}
+            <div className="space-y-3">
+              <div>
+                <p className="text-[13px] font-semibold text-gray-900">{block.title}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{block.startTime} – {block.endTime}</p>
+                {block.description && <p className="text-[12px] text-gray-500 mt-1">{block.description}</p>}
+              </div>
               {linkedTasks.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {linkedTasks.map((tid: string) => {
                     const t = pendingTasks.find((p) => p.id === tid);
                     return t ? (
-                      <span key={tid} className="text-[10px] bg-white/60 px-1.5 py-0.5 rounded-full text-gray-600">
-                        {t.title}
-                      </span>
+                      <span key={tid} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full text-gray-600">{t.title}</span>
                     ) : null;
                   })}
                 </div>
               )}
-              <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
                 <Form method="post">
                   <input type="hidden" name="intent" value="toggle-complete" />
                   <input type="hidden" name="blockId" value={block.id} />
                   <input type="hidden" name="date" value={date} />
-                  <button type="submit" className="p-1 rounded-lg hover:bg-white/50 transition-colors" title="标记完成">
-                    {block.completed
-                      ? <CheckCircle2 size={13} className="text-green-600" />
-                      : <Circle size={13} className="text-gray-400" />}
+                  <button type="submit" className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-green-600 transition-colors">
+                    {block.completed ? <CheckCircle2 size={13} className="text-green-600" /> : <Circle size={13} />}
+                    {block.completed ? "已完成" : "标记完成"}
                   </button>
                 </Form>
-                <button onClick={() => setEditing(true)} className="p-1 rounded-lg hover:bg-white/50 transition-colors" title="编辑">
-                  <Edit3 size={13} className="text-gray-500" />
+                <button onClick={() => setEditing(true)}
+                  className="ml-auto flex items-center gap-1 text-[11px] text-gray-500 hover:text-primary-600 transition-colors">
+                  <Edit3 size={13} />编辑
                 </button>
-                <Form method="post" className="ml-auto">
+                <Form method="post">
                   <input type="hidden" name="intent" value="delete-block" />
                   <input type="hidden" name="blockId" value={block.id} />
                   <input type="hidden" name="date" value={date} />
-                  <button type="submit" className="p-1 rounded-lg hover:bg-red-50 transition-colors" title="删除"
+                  <button type="submit" className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors"
                     onClick={(e) => !confirm("删除此时间块？") && e.preventDefault()}>
-                    <Trash2 size={13} className="text-red-400" />
+                    <Trash2 size={13} />删除
                   </button>
                 </Form>
               </div>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full px-2 py-1 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-400" />
-              <div className="flex gap-1">
+                className="w-full px-2.5 py-1.5 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400"
+                placeholder="标题" />
+              <div className="flex gap-1.5">
                 <input type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)}
-                  className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none" />
+                  className="flex-1 px-2 py-1.5 text-[12px] border border-gray-200 rounded-lg focus:outline-none" />
                 <input type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
-                  className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none" />
+                  className="flex-1 px-2 py-1.5 text-[12px] border border-gray-200 rounded-lg focus:outline-none" />
               </div>
               <select value={editType} onChange={(e) => setEditType(e.target.value)}
-                className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none">
+                className="w-full px-2.5 py-1.5 text-[12px] border border-gray-200 rounded-lg focus:outline-none">
                 {Object.entries(BLOCK_TYPE_LABELS).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}
               </select>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  className="flex-1 py-1 text-[11px] font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="备注（可选）" rows={2}
+                className="w-full px-2.5 py-1.5 text-[12px] border border-gray-200 rounded-lg focus:outline-none resize-none" />
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setEditing(false)}
+                  className="flex-1 py-1.5 text-[12px] text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">取消</button>
+                <button type="button"
+                  className="flex-1 py-1.5 text-[12px] font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700"
                   onClick={() => {
                     fetcher.submit(
-                      {
-                        intent: "update-block", blockId: block.id, date,
+                      { intent: "update-block", blockId: block.id, date,
                         title: editTitle, startTime: editStart, endTime: editEnd,
                         blockType: editType, color: editColor,
-                        description: editDesc, taskIds: block.taskIds || "",
-                        isDrag: "1",
-                      },
+                        description: editDesc, taskIds: block.taskIds || "", isDrag: "1" },
                       { method: "post" }
                     );
                     setEditing(false);
-                  }}
-                >保存</button>
-                <button type="button" onClick={() => setEditing(false)} className="flex-1 py-1 text-[11px] text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">取消</button>
+                    setPopoverOpen(false);
+                  }}>保存</button>
               </div>
             </div>
           )}
@@ -421,6 +444,16 @@ function BlockCard({
           <div className="w-8 h-0.5 rounded-full bg-current opacity-40" style={{ color: block.color }} />
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Task sidebar item ─────────────────────────────────
+function TaskToBlock({ task }: { task: { id: string; title: string; status: string }; date: string }) {
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-50 hover:bg-primary-50 hover:border-primary-100 border border-transparent transition-colors cursor-default">
+      <Circle size={11} className="shrink-0 text-primary-400" />
+      <span className="text-[12px] text-gray-700 leading-tight line-clamp-2 font-medium">{task.title}</span>
     </div>
   );
 }
@@ -561,7 +594,7 @@ export default function SchedulePage() {
   const progressColor = progressPct >= 80 ? "#1A7A4A" : progressPct >= 50 ? "#3B82F6" : "#9CA3AF";
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -604,10 +637,8 @@ export default function SchedulePage() {
             </span>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${progressPct}%`, backgroundColor: progressColor }}
-            />
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${progressPct}%`, backgroundColor: progressColor }} />
           </div>
         </div>
       )}
@@ -628,57 +659,61 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Timeline */}
-      <div className="card overflow-hidden">
-        <div className="flex">
-          {/* Hour labels */}
-          <div className="w-12 shrink-0 border-r border-[#F0F2F1]">
-            {hours.map((h) => (
-              <div key={h} className="flex items-start justify-end pr-2 text-[10px] text-[#8A8F98] font-medium"
-                style={{ height: `${60 * PX_PER_MIN}px` }}>
-                <span className="-mt-2">{String(h).padStart(2, "0")}:00</span>
-              </div>
-            ))}
+      {/* Two-column layout: timeline + task sidebar */}
+      <div className="flex gap-4 items-start">
+        {/* Timeline */}
+        <div className="flex-1 card overflow-visible">
+          <div className="flex">
+            <div className="w-12 shrink-0 border-r border-[#F0F2F1]">
+              {hours.map((h) => (
+                <div key={h} className="flex items-start justify-end pr-2 text-[10px] text-[#8A8F98] font-medium"
+                  style={{ height: `${60 * PX_PER_MIN}px` }}>
+                  <span className="-mt-2">{String(h).padStart(2, "0")}:00</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex-1 relative" style={{ height: `${TIMELINE_DURATION * PX_PER_MIN}px` }}>
+              {hours.map((h) => (
+                <div key={h} className="absolute left-0 right-0 border-t border-[#F0F2F1]"
+                  style={{ top: `${(h * 60 - TIMELINE_START) * PX_PER_MIN}px` }} />
+              ))}
+              {hours.map((h) => (
+                <div key={`${h}-30`} className="absolute left-0 right-0 border-t border-dashed border-[#F4F6F5]"
+                  style={{ top: `${(h * 60 + 30 - TIMELINE_START) * PX_PER_MIN}px` }} />
+              ))}
+              {nowTop !== null && (
+                <div className="absolute left-0 right-0 z-30 flex items-center gap-1 pointer-events-none"
+                  style={{ top: `${nowTop}px` }}>
+                  <div className="w-2 h-2 rounded-full bg-red-500 shrink-0 -ml-1" />
+                  <div className="flex-1 h-px bg-red-400" />
+                  <span className="text-[10px] font-bold text-red-500 pr-1">{currentTime}</span>
+                </div>
+              )}
+              {blocks.map((block) => {
+                const startMin = timeToMin(block.startTime);
+                const endMin = timeToMin(block.endTime);
+                const isActive = isToday && currentMin >= startMin && currentMin < endMin;
+                return (
+                  <BlockCard key={block.id} block={block} isActive={isActive} pendingTasks={pendingTasks} date={date} />
+                );
+              })}
+            </div>
           </div>
+        </div>
 
-          {/* Blocks area */}
-          <div className="flex-1 relative" style={{ height: `${TIMELINE_DURATION * PX_PER_MIN}px` }}>
-            {/* Hour grid lines */}
-            {hours.map((h) => (
-              <div key={h} className="absolute left-0 right-0 border-t border-[#F0F2F1]"
-                style={{ top: `${(h * 60 - TIMELINE_START) * PX_PER_MIN}px` }} />
-            ))}
-            {/* Half-hour lines */}
-            {hours.map((h) => (
-              <div key={`${h}-30`} className="absolute left-0 right-0 border-t border-dashed border-[#F4F6F5]"
-                style={{ top: `${(h * 60 + 30 - TIMELINE_START) * PX_PER_MIN}px` }} />
-            ))}
-
-            {/* Current time indicator */}
-            {nowTop !== null && (
-              <div className="absolute left-0 right-0 z-30 flex items-center gap-1 pointer-events-none"
-                style={{ top: `${nowTop}px` }}>
-                <div className="w-2 h-2 rounded-full bg-red-500 shrink-0 -ml-1" />
-                <div className="flex-1 h-px bg-red-400" />
-                <span className="text-[10px] font-bold text-red-500 pr-1">{currentTime}</span>
+        {/* Task sidebar */}
+        <div className="hidden md:block w-40 shrink-0">
+          <div className="card p-3 sticky top-4">
+            <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-2">待办任务</p>
+            {pendingTasks.length === 0 ? (
+              <p className="text-[12px] text-gray-400 text-center py-4">暂无待办</p>
+            ) : (
+              <div className="space-y-1 max-h-[600px] overflow-auto">
+                {pendingTasks.map((t) => (
+                  <TaskToBlock key={t.id} task={t} date={date} />
+                ))}
               </div>
             )}
-
-            {/* Block cards */}
-            {blocks.map((block) => {
-              const startMin = timeToMin(block.startTime);
-              const endMin = timeToMin(block.endTime);
-              const isActive = isToday && currentMin >= startMin && currentMin < endMin;
-              return (
-                <BlockCard
-                  key={block.id}
-                  block={block}
-                  isActive={isActive}
-                  pendingTasks={pendingTasks}
-                  date={date}
-                />
-              );
-            })}
           </div>
         </div>
       </div>
@@ -703,7 +738,6 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Add form modal */}
       {showAddForm && (
         <AddBlockForm date={date} pendingTasks={pendingTasks} onClose={() => setShowAddForm(false)} />
       )}
