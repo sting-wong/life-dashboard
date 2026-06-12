@@ -1,26 +1,26 @@
 import { Link, useLocation, useNavigate } from "@remix-run/react";
 import {
   LayoutDashboard, LayoutGrid, ListTodo, CheckSquare, Calendar, FileText, Target, CalendarClock,
-  Plus, CalendarDays, GitGraph, TrendingUp, Zap, KeyRound,
+  Plus, CalendarDays, GitGraph, TrendingUp, Zap, KeyRound, Inbox, BarChart2,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 
 const mainItems = [
-  { to: "/", icon: LayoutDashboard, label: "仪表盘" },
+  { to: "/", icon: LayoutDashboard, label: "首页" },
   { to: "/workspace", icon: LayoutGrid, label: "工作台" },
   { to: "/tasks", icon: ListTodo, label: "任务" },
-  { to: "/habits", icon: CheckSquare, label: "习惯" },
-  { to: "/schedule", icon: CalendarClock, label: "日程" },
-  { to: "/calendar", icon: Calendar, label: "日历" },
-  { to: "/notes", icon: FileText, label: "笔记" },
-  { to: "/goals", icon: Target, label: "目标" },
+  { to: "/inbox", icon: Inbox, label: "灵感收藏" },
+  { to: "/creator", icon: BarChart2, label: "自媒体" },
+  { to: "/api-keys", icon: KeyRound, label: "密钥账号" },
 ];
 
 const toolItems = [
-  { to: "/notes/daily", icon: CalendarDays, label: "今日笔记" },
-  { to: "/graph", icon: GitGraph, label: "知识图谱" },
+  { to: "/habits", icon: CheckSquare, label: "习惯" },
+  { to: "/schedule", icon: CalendarClock, label: "日程" },
+  { to: "/calendar", icon: Calendar, label: "日历" },
+  { to: "/goals", icon: Target, label: "目标" },
+  { to: "/notes", icon: FileText, label: "笔记" },
   { to: "/analytics", icon: TrendingUp, label: "数据分析" },
-  { to: "/api-keys", icon: KeyRound, label: "API 密钥" },
 ];
 
 export default function Sidebar() {
