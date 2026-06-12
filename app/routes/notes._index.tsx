@@ -57,6 +57,19 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
+  if (intent === "quick-create") {
+    const title = formData.get("title") as string;
+    const content = (formData.get("content") as string) || "";
+    if (title?.trim()) {
+      db.insert(notes).values({
+        id: uuid(), title: title.trim(), content, type: "note",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }).run();
+    }
+    return json({ ok: true });
+  }
+
   if (intent === "delete-note") {
     const noteId = formData.get("noteId") as string;
     db.delete(notes).where(eq(notes.id, noteId)).run();

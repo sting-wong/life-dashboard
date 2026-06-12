@@ -3,6 +3,7 @@ import { Form, Link, useLoaderData, useFetcher } from "@remix-run/react";
 import { db } from "~/db/index.server";
 import { tasks } from "~/db/schema.server";
 import { eq, asc, isNull } from "drizzle-orm";
+import { v4 as uuid } from "uuid";
 import {
   getStatusColor, getStatusLabel, getPriorityColor, getPriorityLabel,
   formatDateShort, cn
@@ -62,6 +63,20 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const taskId = formData.get("taskId") as string;
+
+  if (intent === "quick-create") {
+    const title = formData.get("title") as string;
+    const priority = ((formData.get("priority") as string) || "medium") as "high" | "medium" | "low" | "urgent";
+    if (title?.trim()) {
+      db.insert(tasks).values({
+        id: uuid(), title: title.trim(), priority,
+        status: "todo",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }).run();
+    }
+    return json({ ok: true });
+  }
 
   if (intent === "toggle-status") {
     const task = db.select().from(tasks).where(eq(tasks.id, taskId)).get();

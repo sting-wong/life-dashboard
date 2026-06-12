@@ -16,6 +16,7 @@ import {
 import styles from "./styles/app.css?url";
 import Sidebar from "./components/Sidebar";
 import CommandPalette from "./components/CommandPalette";
+import QuickCapture from "./components/QuickCapture";
 import TopBar from "./components/TopBar";
 import { db } from "~/db/index.server";
 import { notes, tasks, goals, notifications } from "~/db/schema.server";
@@ -148,27 +149,36 @@ export default function App() {
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#E8ECEA] flex items-center justify-around px-2 pt-1" style={{ paddingBottom: "max(4px, env(safe-area-inset-bottom))" }}>
-          {mobileNavItems.map(({ to, icon: Icon, label }) => {
+          {mobileNavItems.slice(0, 2).map(({ to, icon: Icon, label }) => {
             const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
             return (
-              <Link
-                key={to}
-                to={to}
-                className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors min-w-[52px]",
-                  isActive ? "text-primary-600" : "text-gray-400"
-                )}
-              >
+              <Link key={to} to={to} className={cn("flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors min-w-[52px]", isActive ? "text-primary-600" : "text-gray-400")}>
                 <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
-                <span className={cn("text-[10px] font-medium", isActive ? "text-primary-600" : "text-gray-400")}>
-                  {label}
-                </span>
+                <span className={cn("text-[10px] font-medium", isActive ? "text-primary-600" : "text-gray-400")}>{label}</span>
+              </Link>
+            );
+          })}
+
+          {/* 中间快速录入按钮 */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-quick-capture"))}
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-lg -mt-5 text-2xl leading-none"
+            aria-label="快速录入"
+          >+</button>
+
+          {mobileNavItems.slice(2).map(({ to, icon: Icon, label }) => {
+            const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
+            return (
+              <Link key={to} to={to} className={cn("flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors min-w-[52px]", isActive ? "text-primary-600" : "text-gray-400")}>
+                <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+                <span className={cn("text-[10px] font-medium", isActive ? "text-primary-600" : "text-gray-400")}>{label}</span>
               </Link>
             );
           })}
         </nav>
 
         <CommandPalette items={searchItems} />
+        <QuickCapture />
         <ScrollRestoration />
         <Scripts />
       </body>
