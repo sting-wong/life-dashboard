@@ -448,16 +448,6 @@ function BlockCard({
   );
 }
 
-// ─── Task sidebar item ─────────────────────────────────
-function TaskToBlock({ task }: { task: { id: string; title: string; status: string }; date: string }) {
-  return (
-    <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-50 hover:bg-primary-50 hover:border-primary-100 border border-transparent transition-colors cursor-default">
-      <Circle size={11} className="shrink-0 text-primary-400" />
-      <span className="text-[12px] text-gray-700 leading-tight line-clamp-2 font-medium">{task.title}</span>
-    </div>
-  );
-}
-
 // ─── Add block form ────────────────────────────────────
 function AddBlockForm({ date, pendingTasks, onClose }: {
   date: string;
@@ -594,7 +584,7 @@ export default function SchedulePage() {
   const progressColor = progressPct >= 80 ? "#1A7A4A" : progressPct >= 50 ? "#3B82F6" : "#9CA3AF";
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -608,7 +598,7 @@ export default function SchedulePage() {
 
       {/* Date nav */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => goDate(-1)} className="w-8 h-8 rounded-full bg-white border border-[#E8ECEA] flex items-center justify-center hover:bg-gray-50 transition-colors">
+        <button onClick={() => goDate(-1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f5efe6] transition-colors" style={{ background: "#fffcf6", border: "1px solid rgba(222,210,194,0.65)" }}>
           <ChevronLeft size={15} className="text-gray-500" />
         </button>
         <div className="flex-1 text-center">
@@ -617,7 +607,7 @@ export default function SchedulePage() {
             <span className="ml-2 text-[11px] font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">今天</span>
           )}
         </div>
-        <button onClick={() => goDate(1)} className="w-8 h-8 rounded-full bg-white border border-[#E8ECEA] flex items-center justify-center hover:bg-gray-50 transition-colors">
+        <button onClick={() => goDate(1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f5efe6] transition-colors" style={{ background: "#fffcf6", border: "1px solid rgba(222,210,194,0.65)" }}>
           <ChevronRight size={15} className="text-gray-500" />
         </button>
         {!isToday && (
@@ -659,11 +649,9 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Two-column layout: timeline + task sidebar */}
-      <div className="flex gap-4 items-start">
-        {/* Timeline */}
-        <div className="flex-1 card overflow-visible">
-          <div className="flex">
+      {/* Timeline full-width */}
+      <div className="card overflow-visible">
+        <div className="flex">
             <div className="w-12 shrink-0 border-r border-[#F0F2F1]">
               {hours.map((h) => (
                 <div key={h} className="flex items-start justify-end pr-2 text-[10px] text-[#8A8F98] font-medium"
@@ -701,22 +689,6 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        {/* Task sidebar */}
-        <div className="hidden md:block w-40 shrink-0">
-          <div className="card p-3 sticky top-4">
-            <p className="text-[11px] font-bold text-[#8A8F98] uppercase tracking-wider mb-2">待办任务</p>
-            {pendingTasks.length === 0 ? (
-              <p className="text-[12px] text-gray-400 text-center py-4">暂无待办</p>
-            ) : (
-              <div className="space-y-1 max-h-[600px] overflow-auto">
-                {pendingTasks.map((t) => (
-                  <TaskToBlock key={t.id} task={t} date={date} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Stats row */}
       {blocks.length > 0 && (

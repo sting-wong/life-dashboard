@@ -18,6 +18,7 @@ interface BlockEditorProps {
   placeholder?: string;
   editable?: boolean;
   borderless?: boolean;
+  hideToolbar?: boolean;
 }
 
 const WEEKLY_PLAN_HTML = `<h2>本周计划</h2><h3>本周最重要的 3 件事</h3><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><div><p></p></div></li><li data-type="taskItem" data-checked="false"><div><p></p></div></li><li data-type="taskItem" data-checked="false"><div><p></p></div></li></ul><h3>本周学习 / 工作安排</h3><p></p><h3>需要专注完成的任务</h3><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><div><p></p></div></li></ul><h3>本周复盘</h3><p></p>`;
@@ -75,6 +76,7 @@ export default function BlockEditor({
   placeholder = "开始输入...",
   editable = true,
   borderless = false,
+  hideToolbar = false,
 }: BlockEditorProps) {
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   const slashMenuRef = useRef<HTMLDivElement>(null);
@@ -103,7 +105,7 @@ export default function BlockEditor({
     content,
     editable,
     editorProps: {
-      attributes: { class: "prose prose-sm max-w-none p-4 min-h-[300px] focus:outline-none" },
+      attributes: { class: "prose prose-sm max-w-none focus:outline-none" },
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -131,10 +133,25 @@ export default function BlockEditor({
 
       const enabledIds = filtered.filter(i => i.enabled).map(i => i.id);
       const coords = editor.view.coordsAtPos(from);
+      // w-56 = 14rem = 224px at 16px base; add small buffer
+      const MENU_W = 228;
+      // max-h-72 = 18rem = 288px; use actual max to avoid false flip
+      const MENU_H = 320;
+      const MARGIN = 8;
+      // coordsAtPos returns viewport-relative coordinates — correct for position:fixed
       let left = coords.left;
       let top = coords.bottom + 4;
-      if (left + 248 > window.innerWidth - 8) left = window.innerWidth - 256;
-      if (top + 300 > window.innerHeight) top = coords.top - 308;
+      // Clamp right boundary to editor container edge (not full viewport),
+      // so menu doesn't overflow into the sidebar on PC
+      const editorRect = editor.view.dom.getBoundingClientRect();
+      const boundaryRight = Math.min(window.innerWidth - MARGIN, editorRect.right);
+      if (left + MENU_W > boundaryRight) {
+        left = Math.max(MARGIN, boundaryRight - MENU_W);
+      }
+      // Prevent bottom-edge overflow — flip above the cursor line
+      if (top + MENU_H > window.innerHeight - MARGIN) {
+        top = Math.max(MARGIN, coords.top - MENU_H - 4);
+      }
 
       slashRef.current = { open: true, anchorFrom: blockStart, selectedIndex: 0, enabledIds };
       setSlashUI({ open: true, query, top, left, selectedIndex: 0 });
@@ -217,7 +234,7 @@ export default function BlockEditor({
 
   return (
     <div className={borderless ? "" : "border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-transparent"}>
-      {editable && <MenuBar editor={editor} />}
+      {editable && !hideToolbar && <MenuBar editor={editor} />}
       <EditorContent editor={editor} />
       <input type="hidden" name="content" ref={hiddenInputRef} defaultValue={content} />
 
@@ -225,7 +242,7 @@ export default function BlockEditor({
         <div
           ref={slashMenuRef}
           style={{ position: "fixed", top: slashUI.top, left: slashUI.left, zIndex: 9999 }}
-          className="w-60 bg-white rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-200 overflow-y-auto max-h-72 py-1"
+          className="w-56 bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] border border-gray-100 overflow-y-auto max-h-72 py-1.5"
           onMouseDown={(e) => e.preventDefault()}
         >
           {SLASH_GROUPS.map(group => {
@@ -233,7 +250,7 @@ export default function BlockEditor({
             if (items.length === 0) return null;
             return (
               <div key={group}>
-                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <div className="px-3 pt-2 pb-0.5 text-[9px] font-semibold text-gray-300 uppercase tracking-widest">
                   {group}
                 </div>
                 {items.map(item => {
@@ -249,25 +266,26 @@ export default function BlockEditor({
                         if (item.enabled) execRef.current(item.id);
                       }}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors",
+                        "w-full flex items-center gap-2.5 px-2.5 py-1.5 mx-1 rounded-lg text-left transition-colors",
+                        "w-[calc(100%-8px)]",
                         item.enabled
-                          ? isSelected ? "bg-primary-50" : "hover:bg-gray-50 cursor-pointer"
-                          : "opacity-40 cursor-not-allowed"
+                          ? isSelected ? "bg-gray-100" : "hover:bg-gray-50 cursor-pointer"
+                          : "opacity-35 cursor-not-allowed"
                       )}
                     >
-                      <span className="w-7 h-7 rounded-md bg-gray-100 flex items-center justify-center text-sm shrink-0 font-mono leading-none">
+                      <span className="w-6 h-6 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-[12px] shrink-0 font-mono leading-none">
                         {item.emoji}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-gray-800 leading-tight">{item.label}</span>
+                          <span className="text-[12px] font-medium text-gray-700 leading-tight">{item.label}</span>
                           {!item.enabled && (
-                            <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 leading-tight py-px shrink-0">
+                            <span className="text-[9px] font-medium text-amber-500 bg-amber-50 border border-amber-100 rounded px-1 leading-tight py-px shrink-0">
                               即将上线
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-gray-400 truncate leading-tight mt-0.5">{item.desc}</div>
+                        <div className="text-[10px] text-gray-400 truncate leading-tight">{item.desc}</div>
                       </div>
                     </button>
                   );

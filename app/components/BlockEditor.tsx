@@ -6,6 +6,7 @@ interface BlockEditorProps {
   placeholder?: string;
   editable?: boolean;
   borderless?: boolean;
+  hideToolbar?: boolean;
 }
 
 const BlockEditorInner = lazy(() => import("./BlockEditorInner"));
@@ -29,14 +30,11 @@ export default function BlockEditor(props: BlockEditorProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // SSR: render a fallback textarea that can still submit via form
+  // SSR / pre-mount: render null to avoid hydration mismatch.
+  // TipTap is client-only; returning null here means SSR produces no DOM for this
+  // component, so there's nothing for React to reconcile during hydration.
   if (!mounted) {
-    return (
-      <div>
-        <EditorFallback content={props.content} />
-        <input type="hidden" name="content" value={props.content} />
-      </div>
-    );
+    return null;
   }
 
   return (

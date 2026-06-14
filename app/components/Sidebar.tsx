@@ -9,14 +9,14 @@ const mainItems = [
   { to: "/", icon: LayoutDashboard, label: "首页" },
   { to: "/workspace", icon: LayoutGrid, label: "工作台" },
   { to: "/tasks", icon: ListTodo, label: "任务" },
-  { to: "/inbox", icon: Inbox, label: "灵感收藏" },
-  { to: "/creator", icon: BarChart2, label: "自媒体" },
+  { to: "/habits", icon: CheckSquare, label: "习惯" },
+  { to: "/schedule", icon: CalendarClock, label: "日程" },
   { to: "/api-keys", icon: KeyRound, label: "密钥账号" },
 ];
 
 const toolItems = [
-  { to: "/habits", icon: CheckSquare, label: "习惯" },
-  { to: "/schedule", icon: CalendarClock, label: "日程" },
+  { to: "/inbox", icon: Inbox, label: "灵感收藏" },
+  { to: "/creator", icon: BarChart2, label: "自媒体" },
   { to: "/calendar", icon: Calendar, label: "日历" },
   { to: "/goals", icon: Target, label: "目标" },
   { to: "/notes", icon: FileText, label: "笔记" },
@@ -49,7 +49,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-[180px] bg-white border-r border-[#E8ECEA] flex flex-col shrink-0">
+    <aside className="w-[180px] bg-[#faf6ef] border-r border-[rgba(222,210,194,0.55)] flex flex-col shrink-0">
       {/* Logo */}
       <div className="px-4 py-5">
         <div className="flex items-center gap-2.5">
@@ -70,7 +70,7 @@ export default function Sidebar() {
         ))}
 
         <div className="pt-3 mt-3 mx-1 border-t border-[#E8ECEA]">
-          <p className="px-3 mb-1 text-[9px] font-bold text-[#8A8F98] uppercase tracking-[0.15em]">
+          <p className="px-3 mb-1 text-[9px] font-bold text-[#c4b9ad] uppercase tracking-[0.15em]">
             工具
           </p>
           {toolItems.map((item) => (

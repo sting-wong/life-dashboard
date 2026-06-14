@@ -5,8 +5,26 @@
 @layer base {
   body {
     @apply text-gray-900 antialiased;
-    background: #F7F5F0;
+    background:
+      radial-gradient(circle at 13% 8%, rgba(255, 207, 132, 0.48), transparent 28%),
+      radial-gradient(circle at 78% 18%, rgba(52, 153, 94, 0.23), transparent 32%),
+      radial-gradient(circle at 64% 92%, rgba(255, 255, 255, 0.46), transparent 30%),
+      linear-gradient(135deg, #f8ead4 0%, #f6efe1 46%, #e3ecd9 100%);
     min-height: 100vh;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.28;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.38) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 48% 16%, black, transparent 74%);
+    -webkit-mask-image: radial-gradient(circle at 48% 16%, black, transparent 74%);
+    z-index: 0;
   }
 }
 
@@ -25,7 +43,9 @@
   }
 
   .card {
-    @apply bg-white rounded-[18px] border border-[#E8ECEA] shadow-card;
+    @apply rounded-[18px] shadow-card;
+    background: #fffcf6;
+    border: 1px solid rgba(222, 210, 194, 0.65);
   }
   .card-hover {
     @apply hover:shadow-card-hover hover:border-gray-200 transition-all duration-200;
@@ -66,9 +86,84 @@
 .ProseMirror h3 { @apply text-lg font-medium mb-1.5; }
 .ProseMirror p { @apply mb-2; }
 
-/* ─── Workspace editor: more comfortable line-height ─── */
-.prose-workspace .ProseMirror p { line-height: 1.85; font-size: 15px; color: #374151; }
-.prose-workspace .ProseMirror { min-height: 320px; }
+/* ─── Workspace editor: Free Studio paper feel ─── */
+.prose-workspace .ProseMirror {
+  min-height: 380px;
+  caret-color: #1f7a4d;
+  padding: 0;
+}
+.prose-workspace .ProseMirror p {
+  line-height: 1.85;
+  font-size: 15px;
+  color: #29231c;
+  margin-bottom: 10px;
+}
+.prose-workspace .ProseMirror h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #29231c;
+  margin: 22px 0 10px;
+}
+.prose-workspace .ProseMirror h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #29231c;
+  margin: 16px 0 6px;
+}
+/* Task list checkbox — rounded square */
+.prose-workspace .ProseMirror ul[data-type="taskList"] {
+  padding-left: 0;
+  list-style: none;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  margin: 0;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li label {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 0;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li > div > p {
+  margin: 0;
+  padding: 0;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.5px solid #c8bba9;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"]:checked {
+  background: #1f7a4d;
+  border-color: #1f7a4d;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l2.5 2.5L9 1' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 10px;
+}
+.prose-workspace .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  text-decoration: line-through;
+  color: #8b7e70;
+}
+.prose-workspace .ProseMirror p.is-editor-empty:first-child::before {
+  color: #b8aa99;
+}
 .ProseMirror ul { @apply list-disc pl-6 mb-2; }
 .ProseMirror ol { @apply list-decimal pl-6 mb-2; }
 .ProseMirror li { @apply mb-1; }
@@ -83,7 +178,17 @@
 .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"] { @apply cursor-pointer; }
 .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p { @apply line-through text-gray-400; }
 
-::-webkit-scrollbar { width: 6px; }
+/* Focus carousel: single full card on mobile, multi-card on desktop */
+.focus-carousel {
+  grid-auto-columns: 100%;
+}
+@media (min-width: 1024px) {
+  .focus-carousel {
+    grid-auto-columns: minmax(166px, 30%);
+  }
+}
+
+
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full; }
 ::-webkit-scrollbar-thumb:hover { @apply bg-gray-300; }
